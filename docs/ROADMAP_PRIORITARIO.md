@@ -323,3 +323,9 @@ Em caso de conflito:
 - Mensagens de sucesso/erro padronizadas nas telas atualizadas e reforço de aviso de simulação RP.
 - Anti-duplo-clique reforçado por estado de loading em botões sensíveis.
 - Pendências para follow-up da PR 11: expandir confirmação/preview para 100% dos fluxos de mercado primário/secundário e painéis econômicos restantes.
+
+
+## Atualização 2026-05-06 — PR 12 visual premium inicial
+- [~] Camada inicial de design system visual implementada no frontend com tokens globais, cards premium e componentes reutilizáveis base.
+- [~] Escopo focado em frontend visual, sem alteração de regras econômicas, backend, banco ou migration.
+- [ ] Pendências futuras: gráfico premium avançado, livro de ordens premium avançado e refinamentos mobile adicionais.

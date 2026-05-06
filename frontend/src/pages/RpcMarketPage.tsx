@@ -9,6 +9,10 @@ import { api } from '../services/api';
 import { formatCurrency, formatPercent, formatPrice, formatSignedPrice } from '../utils/formatters';
 import { MarketLineChart, type MarketChartPoint } from '../components/MarketLineChart';
 import { OrderBook } from '../components/OrderBook';
+import { PageShell } from '../components/ui/PageShell';
+import { MetricCard } from '../components/ui/MetricCard';
+import { InfoCallout } from '../components/ui/InfoCallout';
+import { EmptyState } from '../components/ui/EmptyState';
 
 type MarketState = { currentPrice: string; fiatReserve: string; rpcReserve: string; totalFiatVolume: string; totalRpcVolume: string; totalBuys: number; totalSells: number; updatedAt: string; };
 type Trade = { id: string; side: 'BUY_RPC' | 'SELL_RPC'; fiatAmount: string; rpcAmount: string; unitPrice: string; priceBefore: string; priceAfter: string; createdAt: string; };
@@ -284,7 +288,7 @@ export function RpcMarketPage({ initialTradeFlow, onTradeFlowHandled }: { initia
   const variationPercent = chartMetrics.variationPercent;
 
   return (
-    <section className="card market-page market-shell market-page-v2">
+    <PageShell title="Mercado RPC/R$" subtitle="Simulação RP com execução e confirmação de segurança."><section className="card market-page market-shell market-page-v2">
       <div className="trade-screen market-mobile-shell">
         <header className="card trade-header market-pair-header market-compact-header market-asset-header market-full-width">
           <div className="market-compact-top">
@@ -299,14 +303,16 @@ export function RpcMarketPage({ initialTradeFlow, onTradeFlowHandled }: { initia
             </p>
           </div>
           <div className="market-stats-row market-mini-stats">
-            <div className="market-mini-stat-card"><span className="market-mini-stat-label">Máx</span><strong>R$ {formatPrice(chartMetrics.max)}</strong></div>
-            <div className="market-mini-stat-card"><span className="market-mini-stat-label">Mín</span><strong>R$ {formatPrice(chartMetrics.min)}</strong></div>
-            <div className="market-mini-stat-card"><span className="market-mini-stat-label">Volume</span><strong>R$ {formatCurrency(chartMetrics.fiatVolume)}</strong></div>
-            <div className="market-mini-stat-card"><span className="market-mini-stat-label">Saldo RPC</span><strong>{formatCurrency(Number(wallet?.rpcAvailableBalance ?? 0))}</strong></div>
+            <MetricCard label="Preço atual" value={`R$ ${formatPrice(Number(market?.currentPrice ?? 0))}`} />
+            <MetricCard label="Máx" value={`R$ ${formatPrice(chartMetrics.max)}`} />
+            <MetricCard label="Mín" value={`R$ ${formatPrice(chartMetrics.min)}`} />
+            <MetricCard label="Volume R$" value={formatCurrency(chartMetrics.fiatVolume)} />
+            <MetricCard label="Volume RPC" value={formatCurrency(chartMetrics.rpcVolume)} />
+            <MetricCard label="Saldo RPC" value={formatCurrency(Number(wallet?.rpcAvailableBalance ?? 0))} />
           </div>
         </header>
 
-        <EconomicNotice />
+        <InfoCallout title="Simulação RP" tone="info"><p>R$ e RPC são fictícios e sem conversão real.</p></InfoCallout><EconomicNotice />
         {error && <StatusMessage type="error" message={error} />}
         {message && <StatusMessage type="success" message={message} />}
 
@@ -326,14 +332,14 @@ export function RpcMarketPage({ initialTradeFlow, onTradeFlowHandled }: { initia
             {!isLoading && <MarketLineChart points={chartPoints} currentPrice={Number(market?.currentPrice ?? 0)} timeframe={activeTimeframe} emptyMessage="Sem dados suficientes para o gráfico." />}
           </div>
           <div className="chart-meta market-price-card"><div><span>Atual</span><strong>R$ {formatPrice(Number(market?.currentPrice ?? 0))}</strong></div><div><span>Máximo</span><strong>R$ {formatPrice(chartMetrics.max)}</strong></div><div><span>Mínimo</span><strong>R$ {formatPrice(chartMetrics.min)}</strong></div><div><span>Volume R$</span><strong>{formatCurrency(chartMetrics.fiatVolume)}</strong></div><div><span>Volume RPC</span><strong>{formatCurrency(chartMetrics.rpcVolume)}</strong></div><div><span>Trades no período</span><strong>{chartMetrics.tradeCount}</strong></div></div>
-          {!isLoading && chartMetrics.emptyReason && <p className="empty-state">{chartMetrics.emptyReason}</p>}
+          {!isLoading && chartMetrics.emptyReason && <EmptyState title="Sem histórico suficiente" description={chartMetrics.emptyReason} />}
         </section>}
 
         {activeTab === 'livro' && <section className="card nested-card market-tab-panel market-full-width"><h4>Livro de ordens RPC/R$</h4><p className="info-text">RPC/R$ ainda usa liquidez automática para execução. O livro mostra ordens limite pendentes.</p><div className="order-book-grid"><div className="summary-item"><span className="summary-label">Reserva RPC</span><strong>{formatCurrency(Number(market?.rpcReserve ?? 0))} RPC</strong></div><div className="summary-item"><span className="summary-label">Reserva R$</span><strong>R$ {formatCurrency(Number(market?.fiatReserve ?? 0))}</strong></div></div><OrderBook buyOrders={orderBook.buyOrders.map((o) => { const price = Number(o.limitPrice || 0); const fiat = Number(o.lockedFiatAmount || o.fiatAmount || 0); const quantity = price > 0 ? fiat / price : 0; return { id: o.id, price, quantity, total: fiat }; })} sellOrders={orderBook.sellOrders.map((o) => { const price = Number(o.limitPrice || 0); const quantity = Number(o.lockedRpcAmount || o.rpcAmount || 0); return { id: o.id, price, quantity, total: price * quantity }; })} currentPrice={Number(market?.currentPrice ?? 0)} quoteSymbol="R$" baseSymbol="RPC" emptyMessage="Sem ordens abertas neste livro." /></section>}
 
-        {activeTab === 'ordens' && <section className="card nested-card market-tab-panel market-full-width"><h4>Minhas ordens RPC/R$</h4>{myOrders.length===0?<p className="empty-state">Nenhuma ordem RPC/R$ criada ainda.</p>:<div className="mobile-card-list">{myOrders.map((order)=><article key={order.id} className="summary-item compact-card market-order-card"><p><strong>{order.side==='BUY_RPC'?'COMPRA':'VENDA'}</strong> · {order.status}</p><p>Preço limite: R$ {formatPrice(Number(order.limitPrice||0))}</p><p>Valor: {order.side==='BUY_RPC'?`R$ ${formatCurrency(Number(order.fiatAmount??0))}`:`${formatCurrency(Number(order.rpcAmount??0))} RPC`}</p><p>Travado: {order.side==='BUY_RPC'?`R$ ${formatCurrency(Number(order.lockedFiatAmount??0))}`:`${formatCurrency(Number(order.lockedRpcAmount??0))} RPC`}</p><p>Criada: {new Date(order.createdAt).toLocaleString('pt-BR')}</p>{order.executedAt && <p>Executada: {new Date(order.executedAt).toLocaleString('pt-BR')}</p>}{order.canceledAt && <p>Cancelada: {new Date(order.canceledAt).toLocaleString('pt-BR')}</p>}{order.status==='OPEN' && <ActionButton type="button" className="small-button" onClick={() => void onCancelOrder(order.id)} loading={cancelingOrderId === order.id} loadingText="Cancelando..." disabled={cancelingOrderId !== null && cancelingOrderId !== order.id}>Cancelar</ActionButton>}</article>)}</div>}</section>}
+        {activeTab === 'ordens' && <section className="card nested-card market-tab-panel market-full-width"><h4>Minhas ordens RPC/R$</h4>{myOrders.length===0?<EmptyState title="Sem ordens" description="Nenhuma ordem RPC/R$ criada ainda." />:<div className="mobile-card-list">{myOrders.map((order)=><article key={order.id} className="summary-item compact-card market-order-card"><p><strong>{order.side==='BUY_RPC'?'COMPRA':'VENDA'}</strong> · {order.status}</p><p>Preço limite: R$ {formatPrice(Number(order.limitPrice||0))}</p><p>Valor: {order.side==='BUY_RPC'?`R$ ${formatCurrency(Number(order.fiatAmount??0))}`:`${formatCurrency(Number(order.rpcAmount??0))} RPC`}</p><p>Travado: {order.side==='BUY_RPC'?`R$ ${formatCurrency(Number(order.lockedFiatAmount??0))}`:`${formatCurrency(Number(order.lockedRpcAmount??0))} RPC`}</p><p>Criada: {new Date(order.createdAt).toLocaleString('pt-BR')}</p>{order.executedAt && <p>Executada: {new Date(order.executedAt).toLocaleString('pt-BR')}</p>}{order.canceledAt && <p>Cancelada: {new Date(order.canceledAt).toLocaleString('pt-BR')}</p>}{order.status==='OPEN' && <ActionButton type="button" className="small-button" onClick={() => void onCancelOrder(order.id)} loading={cancelingOrderId === order.id} loadingText="Cancelando..." disabled={cancelingOrderId !== null && cancelingOrderId !== order.id}>Cancelar</ActionButton>}</article>)}</div>}</section>}
 
-        {activeTab === 'trades' && <section className="card nested-card market-tab-panel market-full-width"><h4>Últimos trades RPC/R$</h4><div className="mobile-card-list">{trades.length === 0 && <p className="empty-state">Sem negociações ainda.</p>}{trades.slice(0, 20).map((trade) => <article key={trade.id} className="summary-item compact-card market-order-card"><p><strong>{trade.side === 'BUY_RPC' ? 'COMPRA' : 'VENDA'}</strong> · {new Date(trade.createdAt).toLocaleTimeString('pt-BR')}</p><p>Preço: R$ {formatPrice(Number(trade.unitPrice))}</p><p>Quantidade: {formatCurrency(Number(trade.rpcAmount))} RPC</p><p>Total: R$ {formatCurrency(Number(trade.fiatAmount))}</p></article>)}</div></section>}
+        {activeTab === 'trades' && <section className="card nested-card market-tab-panel market-full-width"><h4>Últimos trades RPC/R$</h4><div className="mobile-card-list">{trades.length === 0 && <EmptyState title="Sem negociações" description="Sem negociações ainda." />}{trades.slice(0, 20).map((trade) => <article key={trade.id} className="summary-item compact-card market-order-card"><p><strong>{trade.side === 'BUY_RPC' ? 'COMPRA' : 'VENDA'}</strong> · {new Date(trade.createdAt).toLocaleTimeString('pt-BR')}</p><p>Preço: R$ {formatPrice(Number(trade.unitPrice))}</p><p>Quantidade: {formatCurrency(Number(trade.rpcAmount))} RPC</p><p>Total: R$ {formatCurrency(Number(trade.fiatAmount))}</p></article>)}</div></section>}
 
         {activeTab === 'dados' && <section className="card nested-card market-tab-panel market-full-width"><h4>Dados do mercado</h4><div className="market-data-grid"><div className="summary-item"><span className="summary-label">Preço atual</span><strong>R$ {formatPrice(Number(market?.currentPrice ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Reserva RPC</span><strong>{formatCurrency(Number(market?.rpcReserve ?? 0))} RPC</strong></div><div className="summary-item"><span className="summary-label">Reserva R$</span><strong>R$ {formatCurrency(Number(market?.fiatReserve ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Volume total R$</span><strong>{formatCurrency(Number(market?.totalFiatVolume ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Volume total RPC</span><strong>{formatCurrency(Number(market?.totalRpcVolume ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Total compras</span><strong>{market?.totalBuys ?? 0}</strong></div><div className="summary-item"><span className="summary-label">Total vendas</span><strong>{market?.totalSells ?? 0}</strong></div><div className="summary-item"><span className="summary-label">Atualizado em</span><strong>{market?.updatedAt ? new Date(market.updatedAt).toLocaleString('pt-BR') : '--'}</strong></div><div className="summary-item"><span className="summary-label">Saldo R$ disponível</span><strong>{formatCurrency(Number(wallet?.fiatAvailableBalance ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Saldo R$ travado</span><strong>{formatCurrency(Number(wallet?.fiatLockedBalance ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Saldo RPC disponível</span><strong>{formatCurrency(Number(wallet?.rpcAvailableBalance ?? 0))}</strong></div><div className="summary-item"><span className="summary-label">Saldo RPC travado</span><strong>{formatCurrency(Number(wallet?.rpcLockedBalance ?? 0))}</strong></div></div></section>}
 
@@ -369,6 +375,6 @@ export function RpcMarketPage({ initialTradeFlow, onTradeFlowHandled }: { initia
         >
           <ImpactPreviewCard title="Impacto estimado" items={[{ label: 'Entrada', value: `${formatCurrency(Number(rpcAmount || 0))} RPC` }, { label: 'Saída', value: `R$ ${formatCurrency(Number(sellQuote?.estimatedFiatAmount ?? 0))}` }, { label: 'Taxa', value: `R$ ${formatCurrency(Number(sellQuote?.feeAmount ?? 0))}` }]} warnings={["Não é dinheiro real. Operação em simulação RP."]} />
         </ConfirmEconomicAction>
-    </section>
+    </section></PageShell>
   );
 }

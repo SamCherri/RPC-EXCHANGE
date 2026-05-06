@@ -5,6 +5,8 @@ import { formatCurrency, formatPercent, formatPrice } from '../utils/formatters'
 import { translateCompanyStatus, translateOrderMode, translateOrderStatus, translateOrderType } from '../utils/labels';
 import { MarketLineChart, type MarketChartPoint } from '../components/MarketLineChart';
 import { OrderBook } from '../components/OrderBook';
+import { InfoCallout } from '../components/ui/InfoCallout';
+import { EmptyState } from '../components/ui/EmptyState';
 
 type Company = {
   id: string;
@@ -396,6 +398,7 @@ export function CompaniesPage() {
 
   return (
     <section className="card market-page market-shell">
+      <InfoCallout title="Mercado RP" tone="info"><p>Ativos e preços são da simulação RP. Não há dinheiro real, Pix, cartão ou blockchain.</p></InfoCallout>
       {!selected && (
         <>
           <h2>🪙 Mercados de moedas</h2>
@@ -406,7 +409,7 @@ export function CompaniesPage() {
           </nav>
           <p className="info-text">Negocie moedas criadas por usuários usando RPC.</p>
           {error && <p className="status-message error">{error}</p>}
-          {companies.length === 0 && <p className="empty-state">Nenhuma moeda listada ainda.</p>}
+          {companies.length === 0 && <EmptyState title="Sem moedas listadas" description="Nenhuma moeda listada ainda." />}
           <ul className="company-list">
             {(marketListTab === 'destaques' ? featuredCompanies.filter((company) => `${company.name} ${company.ticker}`.toLowerCase().includes(search.toLowerCase())) : visibleCompanies).map((company) => (
               <li key={company.id} className="card company-visual-card finance-card market-list-card">
@@ -428,7 +431,7 @@ export function CompaniesPage() {
             ))}
           </ul>
           {(marketListTab === 'mercado' ? visibleCompanies : featuredCompanies.filter((company) => `${company.name} ${company.ticker}`.toLowerCase().includes(search.toLowerCase()))).length === 0 && (
-            <p className="empty-state">Nenhuma moeda encontrada para essa busca.</p>
+            <EmptyState title="Busca sem resultados" description="Nenhuma moeda encontrada para essa busca." />
           )}
         </>
       )}
@@ -503,7 +506,7 @@ export function CompaniesPage() {
               </div>
               <div className="chart-meta market-price-card"><div><span>Atual</span><strong>{formatPrice(chartData.lastPrice)}</strong></div><div><span>Máximo</span><strong>{formatPrice(chartData.maxPrice)}</strong></div><div><span>Mínimo</span><strong>{formatPrice(chartData.minPrice)}</strong></div></div>
               <div className="volume-mini-chart">
-                {filteredTrades.length === 0 && <p className="empty-state volume-empty-state">Sem volume ainda neste intervalo</p>}
+                {filteredTrades.length === 0 && <EmptyState title="Sem volume" description="Sem volume ainda neste intervalo." />}
                 {filteredTrades.length > 0 && <div className="volume-bars">{filteredTrades.map((trade) => {
                   const max = Math.max(...filteredTrades.map((item) => item.quantity));
                   const height = max > 0 ? Math.max(6, (trade.quantity / max) * 60) : 6;
@@ -541,7 +544,7 @@ export function CompaniesPage() {
           {activeTab === 'ordens' && (
             <section className="card nested-card market-tab-panel">
               <h4>🧾 Minhas ordens</h4>
-              {myOrders.length === 0 && <p className="empty-state">Você ainda não possui ordens neste mercado.</p>}
+              {myOrders.length === 0 && <EmptyState title="Sem ordens" description="Você ainda não possui ordens neste mercado." />}
               <div className="mobile-card-list">{myOrders.map((order) => (<article key={order.id} className="summary-item compact-card market-order-card"><p><strong>{translateOrderType(order.type)}</strong> · {translateOrderMode(order.mode)}</p><p>Quantidade: {order.quantity} · Restante: {order.remainingQuantity}</p><p>Status: {translateOrderStatus(order.status)}</p><p>Preço: {order.limitPrice ? formatPrice(Number(order.limitPrice)) : 'Agora'}</p>{(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && order.mode === 'LIMIT' && <Button variant="danger" onClick={() => cancelOrder(order.id)} disabled={cancelingOrderId === order.id}>{cancelingOrderId === order.id ? 'Cancelando...' : 'Cancelar ordem'}</Button>}</article>))}</div>
             </section>
           )}
@@ -549,7 +552,7 @@ export function CompaniesPage() {
           {activeTab === 'trades' && (
             <section className="card nested-card market-tab-panel">
               <h4>🕒 Negociações recentes</h4>
-              {filteredTrades.length === 0 && <p className="empty-state">Sem histórico de negociações para este intervalo.</p>}
+              {filteredTrades.length === 0 && <EmptyState title="Sem histórico" description="Sem histórico de negociações para este intervalo." />}
               <div className="mobile-card-list">{filteredTrades.map((trade) => (<article key={trade.id} className="summary-item compact-card market-order-card"><p><strong>Preço:</strong> {formatPrice(Number(trade.unitPrice))}</p><p><strong>Quantidade:</strong> {trade.quantity}</p><p><strong>Data/hora:</strong> {new Date(trade.createdAt).toLocaleString('pt-BR')}</p></article>))}</div>
             </section>
           )}
