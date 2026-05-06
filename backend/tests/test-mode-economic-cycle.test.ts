@@ -33,6 +33,11 @@ async function resetDb() {
     prisma.testModeSimulationStep.deleteMany(), prisma.testModeSimulationRun.deleteMany(),
     prisma.testModeReport.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(),
     prisma.rpcMarketState.deleteMany(), prisma.platformAccount.deleteMany(), prisma.brokerAccount.deleteMany(), prisma.treasuryAccount.deleteMany(),
+    prisma.withdrawalRequest.deleteMany(),
+    prisma.rpcExchangeTrade.deleteMany(),
+    prisma.rpcLimitOrder.deleteMany(),
+    prisma.rolePermission.deleteMany(),
+    prisma.permission.deleteMany(),
     prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(),
   ]);
 }
