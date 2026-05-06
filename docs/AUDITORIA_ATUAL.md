@@ -303,3 +303,9 @@ Fonte oficial: `docs/ROADMAP_PRIORITARIO.md`.
 - Auditoria consolidada reaproveita checks da política de RPC via `auditRpcSupplyConsistency()`.
 - Nenhum endpoint da auditoria executa correção automática ou mutação econômica.
 - Interpretação: cada issue retorna código, severidade, categoria, entidade, mensagem e ação recomendada.
+
+## Atualização 2026-05-06 — Simulador econômico isolado (PR 10)
+- Adicionado simulador de ciclo econômico em Test Mode com execução persistida por run e trilha por steps.
+- Garantia de isolamento: simulação não altera `Wallet`, `Company`, `Trade`, `MarketOrder`, `ProjectTokenReserve`, `ProjectBuybackProgram`, `ProjectHolderDistributionProgram` e `RpcMarketState` reais.
+- Cenários disponíveis: baseline completo, baixa liquidez, entrada/saída de baleia, venda em massa, recompra sem liquidez e tentativa de self-trade.
+- Limitações atuais: replay de run não implementado; UX avançada e visual premium ficam para etapas futuras.

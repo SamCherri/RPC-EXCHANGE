@@ -272,3 +272,24 @@ Objetivo da fase de PWA:
 - Exposição por endpoints admin com filtros e resumo por severidade/categoria.
 - Governança: acesso restrito a `SUPER_ADMIN`, `COIN_CHIEF_ADMIN`, `AUDITOR` e `ADMIN` (padrão administrativo atual).
 - Escopo: detectar e reportar; não corrige saldo, não cria Trade/Order/Transaction, não altera preço/supply/Test Mode.
+
+## Simulador econômico em Test Mode
+
+### O que faz
+- Executa simulações isoladas do ciclo R$ fictício → RPC → oferta inicial → secundário → recompra → reserva → distribuição.
+- Persiste execução em `TestModeSimulationRun` e trilha detalhada em `TestModeSimulationStep`.
+- Gera resumo final com métricas e warnings por cenário.
+
+### O que não faz
+- Não altera economia real da plataforma.
+- Não cria `Trade` real nem `MarketOrder` real.
+- Não altera `Wallet`, `Company`, `RpcMarketState` ou programas econômicos reais.
+
+### Separação de dados
+- Dados de simulação ficam em tabelas próprias de Test Mode para evitar mistura de contexto econômico.
+- Rotas restritas a perfis administrativos/auditoria com autenticação.
+
+### Interpretação do relatório
+- `summary`: métricas agregadas de preço, volume, recompras, reserva e distribuição simuladas.
+- `steps`: sequência auditável com estado anterior/posterior e issues de cada etapa.
+- `warnings`: alertas de risco (liquidez, self-trade bloqueado, pressão de venda etc.).

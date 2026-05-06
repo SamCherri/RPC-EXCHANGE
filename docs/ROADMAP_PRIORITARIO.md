@@ -309,3 +309,10 @@ Em caso de conflito:
 ## Atualização 2026-05-06 — PR 9 auditoria econômica
 - [~] Implementação base entregue: serviço consolidado read-only, endpoints admin de relatório e resumo, integração com auditoria da política RPC e testes iniciais dedicados.
 - [ ] Pendências: ampliação da cobertura para todos os cenários de alerta planejados e painel visual avançado (PR 11).
+
+### Atualização 2026-05-06 — PR 10 simulador do ciclo completo (parcial)
+- Implementado backend de simulação econômica isolada em Test Mode com persistência de runs e steps.
+- Cenários implementados: `BASELINE_FULL_CYCLE`, `LOW_LIQUIDITY`, `WHALE_ENTRY`, `WHALE_EXIT`, `MASS_SELL`, `BUYBACK_NO_LIQUIDITY`, `SELF_TRADE_ATTEMPT`.
+- Endpoints administrativos/auditoria para executar, listar e detalhar simulações.
+- Sem alteração de economia real (`Wallet`, `Trade`, `MarketOrder`, `Company`, `RpcMarketState`).
+- Pendências para PR 11: painel admin avançado do simulador e UX mobile refinada.
