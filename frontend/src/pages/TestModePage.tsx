@@ -9,6 +9,7 @@ import { PageShell } from '../components/ui/PageShell';
 import { MetricCard } from '../components/ui/MetricCard';
 import { InfoCallout } from '../components/ui/InfoCallout';
 import { EmptyState } from '../components/ui/EmptyState';
+import { BottomSheet } from '../components/layout/BottomSheet';
 
 type Wallet = { fiatBalance: string; rpcBalance: string; userId?: string };
 type Market = { currentPrice: string; fiatReserve: string; rpcReserve: string; updatedAt?: string };
@@ -198,7 +199,7 @@ export function TestModePage() {
             <ActionButton variant="danger" disabled={!sellQuote} loading={isSelling} loadingText="Vendendo..." onClick={handleSell}>Vender RPC de teste</ActionButton>
           </div>
           <button type="button" className="quick-pill" onClick={() => setShowQuoteDetails((v) => !v)}>{showQuoteDetails ? 'Ocultar detalhes' : 'Ver detalhes da cotação'}</button>
-          {showQuoteDetails && (
+          <BottomSheet open={showQuoteDetails} title="Detalhes da cotação" onClose={() => setShowQuoteDetails(false)}>
             <div className="summary-item compact-callout">
               <strong>Detalhes da cotação</strong>
               <p className="info-text">Compra: entrada R$ {tradeAmount || '0'} → recebe {buyQuote?.estimatedRpcAmount ?? '-'} RPC</p>
@@ -210,7 +211,7 @@ export function TestModePage() {
               <p className="info-text">Preço efetivo venda: {sellQuote?.effectiveUnitPrice ?? '-'}</p>
               <p className="info-text">Preço após venda: {sellQuote?.estimatedPriceAfter ?? '-'}</p>
             </div>
-          )}
+          </BottomSheet>
         </section>
 
         {lastBotTick && !lastBotTick.skipped && (

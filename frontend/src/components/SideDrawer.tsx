@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
+import { BrandLogo } from './BrandLogo';
 
 export type SideDrawerItem = {
   key: string;
   label: string;
   icon?: string;
-  section?: 'main' | 'secondary' | 'danger';
+  section?: 'main' | 'simulator' | 'projects' | 'admin' | 'danger';
   active?: boolean;
   danger?: boolean;
   onClick: () => void;
@@ -20,7 +21,9 @@ type SideDrawerProps = {
 
 export function SideDrawer({ title, subtitle, open, onClose, items }: SideDrawerProps) {
   const mainItems = items.filter((item) => (item.section ?? 'main') === 'main');
-  const secondaryItems = items.filter((item) => item.section === 'secondary');
+  const simulatorItems = items.filter((item) => item.section === 'simulator');
+  const projectItems = items.filter((item) => item.section === 'projects');
+  const adminItems = items.filter((item) => item.section === 'admin');
   const dangerItems = items.filter((item) => item.section === 'danger' || item.danger);
 
   useEffect(() => {
@@ -46,9 +49,7 @@ export function SideDrawer({ title, subtitle, open, onClose, items }: SideDrawer
         aria-modal="true"
       >
         <header className="side-drawer-header">
-          <div style={{ marginRight: '12px', display: 'flex', alignItems: 'center' }}>
-            <img src="/assets/rpc_exchange_icon.png" alt="RPC" style={{ width: '32px', height: '32px' }} />
-          </div>
+          <BrandLogo size="sm" subtitle={false} markOnly className="drawer-brand-mark" />
           <div className="side-drawer-title">
             <strong>{title}</strong>
             {subtitle ? <small>{subtitle}</small> : null}
@@ -73,8 +74,8 @@ export function SideDrawer({ title, subtitle, open, onClose, items }: SideDrawer
               <span>{item.label}</span>
             </button>
           ))}
-          {secondaryItems.length > 0 && <p className="side-drawer-section-label">Mercado e conta</p>}
-          {secondaryItems.map((item) => (
+          {simulatorItems.length > 0 && <p className="side-drawer-section-label">Simulador</p>}
+          {simulatorItems.map((item) => (
             <button
               key={item.key}
               type="button"
@@ -84,6 +85,20 @@ export function SideDrawer({ title, subtitle, open, onClose, items }: SideDrawer
                 onClose();
               }}
             >
+              {item.icon ? <span className="nav-icon-badge" aria-hidden="true">{item.icon}</span> : null}
+              <span>{item.label}</span>
+            </button>
+          ))}
+          {projectItems.length > 0 && <p className="side-drawer-section-label">Projetos</p>}
+          {projectItems.map((item) => (
+            <button key={item.key} type="button" className={`side-drawer-item${item.active ? ' active' : ''}`} onClick={() => { item.onClick(); onClose(); }}>
+              {item.icon ? <span className="nav-icon-badge" aria-hidden="true">{item.icon}</span> : null}
+              <span>{item.label}</span>
+            </button>
+          ))}
+          {adminItems.length > 0 && <p className="side-drawer-section-label">Administração</p>}
+          {adminItems.map((item) => (
+            <button key={item.key} type="button" className={`side-drawer-item${item.active ? ' active' : ''}`} onClick={() => { item.onClick(); onClose(); }}>
               {item.icon ? <span className="nav-icon-badge" aria-hidden="true">{item.icon}</span> : null}
               <span>{item.label}</span>
             </button>
