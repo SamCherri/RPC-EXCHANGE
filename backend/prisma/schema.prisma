@@ -167,6 +167,7 @@ model User {
   testModeWallet TestModeWallet?
   testModeTrades TestModeTrade[]
   testModeReports TestModeReport[]
+  testModeSimulationRuns TestModeSimulationRun[]
 }
 
 model Role {
@@ -821,4 +822,45 @@ model ProjectHolderDistributionPayment {
   @@index([snapshotId])
   @@index([companyId])
   @@index([userId])
+}
+
+enum TestModeSimulationStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model TestModeSimulationRun {
+  id               String   @id @default(cuid())
+  createdByUserId  String
+  scenario         String
+  status           TestModeSimulationStatus @default(RUNNING)
+  initialStateJson String
+  resultJson       String?
+  warningsJson     String?
+  createdAt        DateTime @default(now())
+  completedAt      DateTime?
+  createdBy        User     @relation(fields: [createdByUserId], references: [id])
+  steps            TestModeSimulationStep[]
+
+  @@index([createdByUserId])
+  @@index([scenario])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model TestModeSimulationStep {
+  id          String   @id @default(cuid())
+  runId        String
+  stepNumber   Int
+  type         String
+  description  String
+  beforeJson   String?
+  afterJson    String?
+  issuesJson   String?
+  createdAt    DateTime @default(now())
+  run          TestModeSimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, stepNumber])
+  @@index([runId])
 }

@@ -24,6 +24,7 @@ import { projectTokenReserveRoutes } from './routes/project-token-reserves.js';
 import { projectHolderDistributionRoutes } from './routes/project-holder-distributions.js';
 import { rpcSupplyPolicyRoutes } from './routes/rpc-supply-policy.js';
 import { economicAuditRoutes } from './routes/economic-audit.js';
+import { testModeEconomicCycleRoutes } from './routes/test-mode-economic-cycle.js';
 import { globalSystemModeGuard } from './plugins/system-mode-guard.js';
 
 export function buildApp() {
@@ -85,6 +86,7 @@ export function buildApp() {
   app.register(projectHolderDistributionRoutes, { prefix: '/api' });
   app.register(rpcSupplyPolicyRoutes, { prefix: '/api' });
   app.register(economicAuditRoutes, { prefix: '/api' });
+  app.register(testModeEconomicCycleRoutes, { prefix: '/api' });
 
   return app;
 }
