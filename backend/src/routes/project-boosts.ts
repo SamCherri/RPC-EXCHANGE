@@ -6,7 +6,6 @@ type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'];
 
 const isAdmin = (roles: string[]) => ADMIN_ROLES.some((role) => roles.includes(role));
-const activeOnly = (status: string) => status === 'ACTIVE';
 
 export async function projectBoostRoutes(app: FastifyInstance) {
   app.get('/project-boosts/my-projects', { preHandler: [app.authenticate] }, async (request) => {
