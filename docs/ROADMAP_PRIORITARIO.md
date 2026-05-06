@@ -304,3 +304,8 @@ Em caso de conflito:
 - ⚠️ Edição de política (planned/max supply) mantida como pendência para etapa futura.
 
 - Saques atuais de WithdrawalRequest são tratados como fluxo fiat/R$ fictício (`fiatWithdrawn`) e não reduzem supply RPC real.
+
+
+## Atualização 2026-05-06 — PR 9 auditoria econômica
+- [~] Implementação base entregue: serviço consolidado read-only, endpoints admin de relatório e resumo, integração com auditoria da política RPC e testes iniciais dedicados.
+- [ ] Pendências: ampliação da cobertura para todos os cenários de alerta planejados e painel visual avançado (PR 11).

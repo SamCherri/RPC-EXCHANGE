@@ -296,3 +296,10 @@ Fonte oficial: `docs/ROADMAP_PRIORITARIO.md`.
 - Test Mode permanece isolado e não entra no cálculo da RPC real.
 
 - Saques atuais de WithdrawalRequest são tratados como fluxo fiat/R$ fictício (`fiatWithdrawn`) e não reduzem supply RPC real.
+
+## Atualização 2026-05-06 — PR 9 auditoria econômica consolidada
+- Implementado serviço consolidado `economic-audit-service` (somente leitura), com severidades `CRITICAL/HIGH/MEDIUM/WARNING`, categorias e filtros.
+- Implementadas rotas administrativas read-only: `/api/admin/economic-audit` e `/api/admin/economic-audit/summary`.
+- Auditoria consolidada reaproveita checks da política de RPC via `auditRpcSupplyConsistency()`.
+- Nenhum endpoint da auditoria executa correção automática ou mutação econômica.
+- Interpretação: cada issue retorna código, severidade, categoria, entidade, mensagem e ação recomendada.

@@ -266,3 +266,9 @@ Objetivo da fase de PWA:
 - Auditoria econômica read-only reporta inconsistências sem autocorreção automática.
 
 - Saques atuais de WithdrawalRequest são tratados como fluxo fiat/R$ fictício (`fiatWithdrawn`) e não reduzem supply RPC real.
+
+## Atualização 2026-05-06 — Auditoria econômica consolidada (PR 9)
+- Camada de auditoria econômica consolidada no backend (`economic-audit-service.ts`) para detecção read-only de inconsistências críticas.
+- Exposição por endpoints admin com filtros e resumo por severidade/categoria.
+- Governança: acesso restrito a `SUPER_ADMIN`, `COIN_CHIEF_ADMIN`, `AUDITOR` e `ADMIN` (padrão administrativo atual).
+- Escopo: detectar e reportar; não corrige saldo, não cria Trade/Order/Transaction, não altera preço/supply/Test Mode.
