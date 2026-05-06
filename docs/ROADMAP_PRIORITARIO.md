@@ -260,11 +260,13 @@ Antes de implementar qualquer coisa relacionada a economia, mercado, RPC, projet
 3. docs/ROADMAP_PRIORITARIO.md
 4. docs/ARQUITETURA_BOLSA_RP.md
 5. docs/AUDITORIA_ATUAL.md
+6. docs/FRONTEND_VISION.md (obrigatório para tarefas de UX visual, repaginação frontend, mobile-first, AppShell, BottomNav, SideDrawer, BottomSheet, design system, telas ou navegação visual)
 
 Em caso de conflito:
 - código atual vence conversa antiga;
 - ROADMAP_PRIORITARIO.md vence docs antigas;
-- regra de segurança econômica vence visual;
+- para decisões visuais/frontend estruturais, docs/FRONTEND_VISION.md deve guiar a implementação;
+- regra de segurança econômica vence visual e permanece acima de qualquer decisão visual;
 - não criar preço falso;
 - não criar volume falso;
 - não criar liquidez falsa;

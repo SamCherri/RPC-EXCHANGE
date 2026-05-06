@@ -6,7 +6,8 @@ Auditoria consolidada do estado atual da **RPC Exchange**, mantendo o projeto ex
 
 - ✅ fluxo mobile;
 - ✅ PWA (manifest + service worker), quando habilitado no frontend;
-- ✅ interface moderna nas telas principais já entregues;
+- ✅ base mobile/PWA e estrutura visual inicial já entregues;
+- ⚠️ interface ainda não deve ser considerada estado final de UX/UI e demanda repaginação estrutural mobile-first por tela seguindo `docs/FRONTEND_VISION.md`;
 - ✅ controle visual por perfil (Admin/Corretor/Usuário);
 - ✅ autenticação, carteira, ordens, livro de ofertas, matching engine e histórico;
 - ✅ carteiras de taxa (`PlatformAccount` e `CompanyRevenueAccount`) com distribuição 50/50 registrada em `FeeDistribution`;
@@ -331,3 +332,4 @@ Fonte oficial: `docs/ROADMAP_PRIORITARIO.md`.
 - O visual premium inicial já existe, porém ainda demanda repaginação estrutural mobile-first por tela.
 - Risco atual registrado: PRs visuais superficiais (componente sem uso real, CSS sem substituição de layout, navegação parcial por perfil e duplicação visual).
 - Mitigação oficial: toda PR visual deve seguir `docs/FRONTEND_VISION.md` com checklist obrigatório e validação de navegação por perfil.
+- Componentes visuais novos devem ser aplicados em telas reais; não aceitar CSS isolado, componente sem uso, layout duplicado ou navegação quebrada por perfil.
