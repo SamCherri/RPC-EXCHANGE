@@ -16,8 +16,8 @@ async function resetDb() {
     prisma.projectBuybackExecution.deleteMany(),
     prisma.projectBuybackProgram.deleteMany(),
     prisma.companyCapitalFlowEntry.deleteMany(),
-    prisma.companyOperation.deleteMany(),
     prisma.feeDistribution.deleteMany(),
+    prisma.companyOperation.deleteMany(),
     prisma.coinIssuance.deleteMany(),
     prisma.coinTransfer.deleteMany(),
     prisma.adminLog.deleteMany(),
@@ -77,7 +77,13 @@ test('valida acesso, cenários, persistência e isolamento', async () => {
   const list = await app.inject({ method: 'GET', url: '/api/admin/test-mode/economic-cycle/runs', headers: { authorization: `Bearer ${tk(auditor.id,['AUDITOR'])}` } });
   assert.equal(list.statusCode, 200);
   const detail = await app.inject({ method: 'GET', url: `/api/admin/test-mode/economic-cycle/runs/${b.runId}`, headers: { authorization: `Bearer ${tk(auditor.id,['AUDITOR'])}` } });
-  assert.equal(detail.statusCode, 200); assert.ok(detail.json().steps.length >= 1);
+  assert.equal(detail.statusCode, 200);
+  const detailBody = detail.json();
+  assert.ok(detailBody.steps.length >= 1);
+  assert.equal(typeof detailBody.result, 'object');
+  assert.equal(typeof detailBody.steps[0].before, 'object');
+  assert.equal(typeof detailBody.steps[0].after, 'object');
+  assert.ok(Array.isArray(detailBody.steps[0].issues));
 
   const bySuper = await app.inject({ method: 'POST', url: '/api/admin/test-mode/economic-cycle/run', headers: { authorization: `Bearer ${tk(superAdmin.id,['SUPER_ADMIN'])}` }, payload: { scenario: 'WHALE_ENTRY' } });
   assert.equal(bySuper.statusCode, 201); assert.ok(bySuper.json().summary.warnings.includes('WHALE_CONCENTRATION_INCREASED'));

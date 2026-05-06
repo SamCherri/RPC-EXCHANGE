@@ -61,5 +61,41 @@ export async function runFullEconomicCycleSimulation(input: { actorUserId: strin
   });
 }
 
+
+function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try { return JSON.parse(value) as T; } catch { return fallback; }
+}
+
 export async function listSimulationRuns(actorRoles: string[]) { assertSimulationReadAccess(actorRoles); return prisma.testModeSimulationRun.findMany({ orderBy: { createdAt: 'desc' }, take: 50 }); }
-export async function getSimulationRun(actorRoles: string[], runId: string) { assertSimulationReadAccess(actorRoles); return prisma.testModeSimulationRun.findUnique({ where: { id: runId }, include: { steps: { orderBy: { stepNumber: 'asc' } } } }); }
+export async function getSimulationRun(actorRoles: string[], runId: string) {
+  assertSimulationReadAccess(actorRoles);
+  const run = await prisma.testModeSimulationRun.findUnique({ where: { id: runId }, include: { steps: { orderBy: { stepNumber: 'asc' } } } });
+  if (!run) return null;
+  return {
+    id: run.id,
+    scenario: run.scenario,
+    status: run.status,
+    createdAt: run.createdAt,
+    completedAt: run.completedAt,
+    initialState: safeJsonParse(run.initialStateJson, {}),
+    result: safeJsonParse(run.resultJson, {}),
+    warnings: safeJsonParse(run.warningsJson, [] as string[]),
+    initialStateJson: run.initialStateJson,
+    resultJson: run.resultJson,
+    warningsJson: run.warningsJson,
+    steps: run.steps.map((step) => ({
+      id: step.id,
+      stepNumber: step.stepNumber,
+      type: step.type,
+      description: step.description,
+      before: safeJsonParse(step.beforeJson, {}),
+      after: safeJsonParse(step.afterJson, {}),
+      issues: safeJsonParse(step.issuesJson, [] as string[]),
+      beforeJson: step.beforeJson,
+      afterJson: step.afterJson,
+      issuesJson: step.issuesJson,
+      createdAt: step.createdAt,
+    })),
+  };
+}
