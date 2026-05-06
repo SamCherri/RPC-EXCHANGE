@@ -287,3 +287,10 @@ Fonte oficial: `docs/ROADMAP_PRIORITARIO.md`.
 
 - Na PR 7, fundador permanece sempre excluído nesta etapa; tentativa de incluir founder (`excludeFounder=false`) é bloqueada com erro 400.
 - Snapshots sem pagamento elegível (valor <= 0 ou wallet ausente) são marcados como `SKIPPED`, evitando `COMPLETED` com pendências `PENDING`.
+
+
+## Atualização 2026-05-06 — PR 8 Política de supply da RPC
+- RPC reafirmada como moeda fictícia interna (sem dinheiro real, Pix, cartão, gateway, blockchain ou saque real).
+- Adicionado resumo read-only de supply/circulação com rastreio de carteiras, tesouraria, corretoras, conta da exchange, caixa institucional e reserva ativa de recompra.
+- Auditoria read-only adicionada para detectar inconsistências de supply/circulação e metadados obrigatórios de emissão/transferência.
+- Test Mode permanece isolado e não entra no cálculo da RPC real.

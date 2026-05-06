@@ -257,3 +257,10 @@ Objetivo da fase de PWA:
 - Snapshot de holders elegíveis é gravado de forma imutável no programa, com cálculo proporcional por shares e fundador excluído por padrão (`excludeFounder=true`).
 - Execução cria `Transaction` individual por holder, registra pagamentos e marca snapshots como `PAID`, com proteção de reexecução por status.
 - Sobra por arredondamento e cancelamento retornam saldo ao caixa institucional, sem impacto em preço, Trade, MarketOrder, supply, reserva e Test Mode.
+
+
+## Atualização 2026-05-06 — Política da RPC (PR 8)
+- Implementado serviço administrativo read-only para consolidar circulação da RPC com fontes econômicas reais do banco.
+- Cálculo inclui: wallets (available/locked/pending), tesouraria, corretoras, PlatformAccount, CompanyRevenueAccount e orçamento ativo reservado em recompra.
+- Cálculo exclui acumuladores históricos (ex.: BrokerAccount.receivedTotal) para evitar dupla contagem.
+- Auditoria econômica read-only reporta inconsistências sem autocorreção automática.

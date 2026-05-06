@@ -295,3 +295,10 @@ Em caso de conflito:
 - Não implementado nesta PR: queima, distribuição, reoferta controlada e venda/transferência de tokens reservados.
 
 - [~] PR 7 — Distribuição para holders, se mantida (implementação base auditável com snapshot, execução idempotente e devolução de sobra; UI avançada pode evoluir em follow-up).
+
+
+## Atualização 2026-05-06 — PR 8 Política da RPC
+- ✅ Parcialmente implementada: governança read-only de supply/circulação da RPC com endpoints administrativos.
+- ✅ Serviço de snapshot soma RPC de wallet, tesouraria, corretoras, conta da exchange, caixa institucional e reserva ativa de recompra sem usar acumuladores históricos.
+- ✅ Auditoria read-only de inconsistências econômicas (saldos negativos, emissão/transferência sem metadados e distribuição acima do budget).
+- ⚠️ Edição de política (planned/max supply) mantida como pendência para etapa futura.
