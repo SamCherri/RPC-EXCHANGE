@@ -32,7 +32,7 @@ export async function runEconomicAudit(input: { actorRoles: string[]; filters?: 
   const filters = input.filters ?? {};
   const issues: EconomicAuditIssue[] = [];
 
-  const [wallets, treasury, brokers, platforms, revenues, boostAccounts, holdings, orders, trades, companies, buybacks, buybackExecutions, reserve, reserveEntries, distributions, snapshots, payments, capitalFlowEntries, adminLogs] = await Promise.all([
+  const [wallets, treasury, brokers, platforms, revenues, boostAccounts, holdings, orders, trades, companies, companyOperations, feeDistributions, buybacks, buybackExecutions, reserve, reserveEntries, distributions, snapshots, payments, capitalFlowEntries, adminLogs] = await Promise.all([
     prisma.wallet.findMany(),
     prisma.treasuryAccount.findMany(),
     prisma.brokerAccount.findMany(),
@@ -43,6 +43,8 @@ export async function runEconomicAudit(input: { actorRoles: string[]; filters?: 
     prisma.marketOrder.findMany(),
     prisma.trade.findMany({ include: { buyOrder: true, sellOrder: true } }),
     prisma.company.findMany(),
+    prisma.companyOperation.findMany(),
+    prisma.feeDistribution.findMany(),
     prisma.projectBuybackProgram.findMany({ include: { company: true } }),
     prisma.projectBuybackExecution.findMany(),
     prisma.projectTokenReserve.findMany(),
@@ -65,6 +67,40 @@ export async function runEconomicAudit(input: { actorRoles: string[]; filters?: 
   for (const r of revenues) if (toNum(r.balance) < 0) issues.push({ code: 'NEGATIVE_COMPANY_REVENUE_BALANCE', severity: 'CRITICAL', category: 'NEGATIVE_BALANCE', entity: 'CompanyRevenueAccount', entityId: r.id, companyId: r.companyId, message: 'Saldo institucional negativo.', recommendedAction: 'Auditar fluxo de capital institucional.' });
   for (const b of boostAccounts) if (toNum(b.rpcBalance) < 0) issues.push({ code: 'NEGATIVE_BOOST_BALANCE', severity: 'HIGH', category: 'NEGATIVE_BALANCE', entity: 'CompanyBoostAccount', entityId: b.id, companyId: b.companyId, message: 'rpcBalance de boost negativo.', recommendedAction: 'Auditar histórico de boost legado.' });
   for (const h of holdings) if (h.shares < 0) issues.push({ code: 'NEGATIVE_HOLDING_SHARES', severity: 'CRITICAL', category: 'NEGATIVE_BALANCE', entity: 'CompanyHolding', entityId: h.id, companyId: h.companyId, userId: h.userId, message: 'Holding com shares negativos.', recommendedAction: 'Auditar trades e cancelamentos relacionados.' });
+
+
+
+  const secondaryTradesByCompany = new Map<string, typeof trades>();
+  for (const trade of trades) {
+    const list = secondaryTradesByCompany.get(trade.companyId) ?? [];
+    list.push(trade);
+    secondaryTradesByCompany.set(trade.companyId, list);
+  }
+
+  for (const company of companies) {
+    const expectedMarketCap = toNum(company.currentPrice) * company.totalShares;
+    if (company.status === 'ACTIVE' && toNum(company.currentPrice) <= 0) {
+      issues.push({ code: 'ACTIVE_COMPANY_NON_POSITIVE_PRICE', severity: 'CRITICAL', category: 'PRICE_INTEGRITY', entity: 'Company', entityId: company.id, companyId: company.id, message: 'Company ACTIVE com currentPrice <= 0.', recommendedAction: 'Auditar formação de preço do ativo.' });
+    }
+    if (Math.abs(toNum(company.fictitiousMarketCap) - expectedMarketCap) > 0.01) {
+      issues.push({ code: 'COMPANY_MARKET_CAP_MISMATCH', severity: 'HIGH', category: 'PRICE_INTEGRITY', entity: 'Company', entityId: company.id, companyId: company.id, message: 'fictitiousMarketCap incompatível com currentPrice * totalShares.', recommendedAction: 'Recalcular market cap com base no preço atual.' });
+    }
+
+    const companyTrades = (secondaryTradesByCompany.get(company.id) ?? []).sort((a,b)=> b.createdAt.getTime()-a.createdAt.getTime());
+    const initialOps = companyOperations.filter((op) => op.companyId === company.id && op.type === 'INITIAL_OFFER_BUY');
+    const hasInitialOp = initialOps.length > 0;
+
+    if (!hasInitialOp && companyTrades.length === 0 && Math.abs(toNum(company.currentPrice) - toNum(company.initialPrice)) > 0.000001) {
+      issues.push({ code: 'PRICE_CHANGED_WITHOUT_ECONOMIC_EVENT', severity: 'CRITICAL', category: 'PRICE_INTEGRITY', entity: 'Company', entityId: company.id, companyId: company.id, message: 'currentPrice diferente de initialPrice sem Trade e sem compra inicial.', recommendedAction: 'Auditar alterações administrativas indevidas de preço.' });
+    }
+
+    if (companyTrades.length > 0) {
+      const lastTradePrice = toNum(companyTrades[0].unitPrice);
+      if (Math.abs(lastTradePrice - toNum(company.currentPrice)) > 0.000001) {
+        issues.push({ code: 'CURRENT_PRICE_DIVERGES_LAST_TRADE', severity: 'HIGH', category: 'PRICE_INTEGRITY', entity: 'Company', entityId: company.id, companyId: company.id, message: 'currentPrice divergente do último Trade do secundário.', recommendedAction: 'Auditar sincronização do preço com trades executados.' });
+      }
+    }
+  }
 
   for (const o of orders) {
     if (['OPEN', 'PARTIALLY_FILLED'].includes(o.status) && o.type === 'BUY' && toNum(o.lockedCash) <= 0) issues.push({ code: 'OPEN_BUY_WITHOUT_LOCKED_CASH', severity: 'CRITICAL', category: 'ORDER_LOCK', entity: 'MarketOrder', entityId: o.id, companyId: o.companyId, userId: o.userId, message: 'Ordem BUY aberta/parcial sem lockedCash válido.', recommendedAction: 'Auditar lock RPC e matching.' });
@@ -127,8 +163,33 @@ export async function runEconomicAudit(input: { actorRoles: string[]; filters?: 
     if (founderPaid) issues.push({ code: 'FOUNDER_PAID_WHEN_EXCLUDED', severity: 'CRITICAL', category: 'HOLDER_DISTRIBUTION', entity: 'ProjectHolderDistributionProgram', entityId: program.id, companyId: program.companyId, userId: company.founderUserId, message: 'Founder recebeu distribuição com excludeFounder=true.', recommendedAction: 'Auditar snapshot e regras de elegibilidade.' });
   }
 
-  for (const c of capitalFlowEntries) {
+  
+  const feeByCompany = new Map<string, number>();
+  for (const fee of feeDistributions) feeByCompany.set(fee.companyId, (feeByCompany.get(fee.companyId) ?? 0) + toNum(fee.companyAmount));
+  const capitalByCompany = new Map<string, number>();
+  for (const entry of capitalFlowEntries) capitalByCompany.set(entry.companyId, (capitalByCompany.get(entry.companyId) ?? 0) + toNum(entry.amountRpc));
+
+  for (const rev of revenues) {
+    const feeTotal = feeByCompany.get(rev.companyId) ?? 0;
+    const capitalTotal = capitalByCompany.get(rev.companyId) ?? 0;
+    const tracedIncoming = feeTotal + capitalTotal;
+    const knownOutflows = toNum(rev.totalWithdrawn) + toNum(rev.totalUsedForBoost);
+    const expectedBalance = tracedIncoming - knownOutflows;
+
+    if (toNum(rev.balance) > 0 && tracedIncoming <= 0) {
+      issues.push({ code: 'INSTITUTIONAL_BALANCE_WITHOUT_TRACEABLE_SOURCE', severity: 'CRITICAL', category: 'TRACEABILITY', entity: 'CompanyRevenueAccount', entityId: rev.id, companyId: rev.companyId, message: 'Saldo institucional positivo sem origem rastreável conhecida.', recommendedAction: 'Auditar origem de créditos institucionais.' });
+    }
+    if (Math.abs(toNum(rev.totalReceivedFees) - feeTotal) > 0.01) {
+      issues.push({ code: 'COMPANY_REVENUE_FEES_MISMATCH', severity: 'HIGH', category: 'TRACEABILITY', entity: 'CompanyRevenueAccount', entityId: rev.id, companyId: rev.companyId, message: 'totalReceivedFees divergente da soma de FeeDistribution.companyAmount.', recommendedAction: 'Reconciliar conta institucional com distribuição de taxas.' });
+    }
+    if (Math.abs(toNum(rev.balance) - expectedBalance) > 0.01) {
+      issues.push({ code: 'COMPANY_REVENUE_BALANCE_MISMATCH', severity: 'HIGH', category: 'TRACEABILITY', entity: 'CompanyRevenueAccount', entityId: rev.id, companyId: rev.companyId, message: 'Saldo institucional divergente de entradas rastreáveis menos saídas conhecidas.', recommendedAction: 'Executar reconciliação contábil institucional.' });
+    }
+  }
+for (const c of capitalFlowEntries) {
     if (toNum(c.amountRpc) <= 0) issues.push({ code: 'CAPITAL_FLOW_NON_POSITIVE_AMOUNT', severity: 'HIGH', category: 'TRACEABILITY', entity: 'CompanyCapitalFlowEntry', entityId: c.id, companyId: c.companyId, userId: c.actorUserId, message: 'Entry de capital com amountRpc <= 0.', recommendedAction: 'Corrigir fluxo institucional e exigir valores positivos.' });
+    const invalidCombo = (c.type === 'OWNER_RPC_CONTRIBUTION' && c.source !== 'OWNER_WALLET') || (c.type === 'ADMIN_RPC_ADJUSTMENT' && c.source !== 'ADMIN_ADJUSTMENT') || (c.type === 'PROJECT_REVENUE_IN' && c.source === 'OWNER_WALLET') || (c.type === 'PROJECT_REVENUE_OUT' && c.source === 'MARKET_FEE');
+    if (invalidCombo) issues.push({ code: 'CAPITAL_FLOW_SOURCE_TYPE_MISMATCH', severity: 'HIGH', category: 'TRACEABILITY', entity: 'CompanyCapitalFlowEntry', entityId: c.id, companyId: c.companyId, userId: c.actorUserId, message: 'CompanyCapitalFlowEntry com source/type incompatível.', recommendedAction: 'Corrigir classificação contábil do aporte institucional.' });
     if (!c.reason?.trim()) issues.push({ code: 'CAPITAL_FLOW_MISSING_REASON', severity: 'HIGH', category: 'TRACEABILITY', entity: 'CompanyCapitalFlowEntry', entityId: c.id, companyId: c.companyId, userId: c.actorUserId, message: 'Entry de capital sem reason.', recommendedAction: 'Exigir motivo obrigatório em aporte institucional.' });
   }
 

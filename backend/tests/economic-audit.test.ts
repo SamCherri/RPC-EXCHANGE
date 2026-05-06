@@ -14,7 +14,7 @@ async function resetDb() {
   await prisma.$transaction([
     prisma.projectHolderDistributionPayment.deleteMany(), prisma.projectHolderDistributionSnapshot.deleteMany(), prisma.projectHolderDistributionProgram.deleteMany(),
     prisma.projectTokenReserveEntry.deleteMany(), prisma.projectTokenReserve.deleteMany(), prisma.projectBuybackExecution.deleteMany(), prisma.projectBuybackProgram.deleteMany(), prisma.companyCapitalFlowEntry.deleteMany(),
-    prisma.coinIssuance.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.adminLog.deleteMany(), prisma.transaction.deleteMany(), prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.platformAccount.deleteMany(), prisma.brokerAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.wallet.deleteMany(), prisma.company.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(),
+    prisma.coinIssuance.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.adminLog.deleteMany(), prisma.transaction.deleteMany(), prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.platformAccount.deleteMany(), prisma.brokerAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.wallet.deleteMany(), prisma.company.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(),
   ]);
 }
 const mkRole = (key: string) => prisma.role.create({ data: { key, name: key } });
@@ -102,5 +102,37 @@ test('detecta checks novos de order/buyback/distribution e mantém read-only', a
     trades: await prisma.trade.count(),
     orders: await prisma.marketOrder.count(),
   };
+  assert.deepEqual(after, before);
+});
+
+
+test('detecta alertas de preço e crédito institucional sem origem e mantém filtros/read-only', async () => {
+  await resetDb();
+  const adminRole = await mkRole('SUPER_ADMIN');
+  const admin = await mkUser('admin4@ea.test');
+  const founder = await mkUser('founder4@ea.test');
+  await prisma.userRole.create({ data: { userId: admin.id, roleId: adminRole.id } });
+
+  const c1 = await prisma.company.create({ data: { name: 'P1', ticker: 'P1AA', description: 'd', sector: 's', founderUserId: founder.id, status: 'ACTIVE', totalShares: 100, ownerSharePercent: 50, publicOfferPercent: 50, ownerShares: 50, publicOfferShares: 50, availableOfferShares: 50, initialPrice: 1, currentPrice: 0, buyFeePercent: 1, sellFeePercent: 1, fictitiousMarketCap: 0 } });
+  const c2 = await prisma.company.create({ data: { name: 'P2', ticker: 'P2AA', description: 'd', sector: 's', founderUserId: founder.id, status: 'ACTIVE', totalShares: 100, ownerSharePercent: 50, publicOfferPercent: 50, ownerShares: 50, publicOfferShares: 50, availableOfferShares: 50, initialPrice: 1, currentPrice: 2, buyFeePercent: 1, sellFeePercent: 1, fictitiousMarketCap: 50 } });
+
+  await prisma.companyRevenueAccount.create({ data: { companyId: c2.id, balance: 20, totalReceivedFees: 9, totalWithdrawn: 0, totalUsedForBoost: 0 } });
+
+  const token = await auth(admin.id, ['SUPER_ADMIN']);
+  const all = await app.inject({ method: 'GET', url: '/api/admin/economic-audit?includeWarnings=true', headers: { authorization: `Bearer ${token}` } });
+  assert.equal(all.statusCode, 200, all.body);
+  const codes = all.json().issues.map((i: { code: string }) => i.code);
+  assert.ok(codes.includes('ACTIVE_COMPANY_NON_POSITIVE_PRICE'));
+  assert.ok(codes.includes('PRICE_CHANGED_WITHOUT_ECONOMIC_EVENT'));
+  assert.ok(codes.includes('INSTITUTIONAL_BALANCE_WITHOUT_TRACEABLE_SOURCE'));
+  assert.ok(codes.includes('COMPANY_REVENUE_FEES_MISMATCH'));
+
+  const filtered = await app.inject({ method: 'GET', url: '/api/admin/economic-audit?category=PRICE_INTEGRITY', headers: { authorization: `Bearer ${token}` } });
+  assert.equal(filtered.statusCode, 200);
+  assert.ok(filtered.json().issues.every((i: { category: string }) => i.category === 'PRICE_INTEGRITY'));
+
+  const before = { tx: await prisma.transaction.count(), trades: await prisma.trade.count(), orders: await prisma.marketOrder.count() };
+  await app.inject({ method: 'GET', url: '/api/admin/economic-audit/summary', headers: { authorization: `Bearer ${token}` } });
+  const after = { tx: await prisma.transaction.count(), trades: await prisma.trade.count(), orders: await prisma.marketOrder.count() };
   assert.deepEqual(after, before);
 });
