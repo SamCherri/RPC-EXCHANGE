@@ -316,3 +316,10 @@ Fonte oficial: `docs/ROADMAP_PRIORITARIO.md`.
 - Avisos econômicos padronizados reforçando que R$ e RPC são fictícios e que não existe dinheiro real, Pix, cartão, gateway, cripto real ou blockchain.
 - Preview de impacto introduzido em fluxo de mercado RPC/R$ para compra com estimativas de entrada, taxa, preço e risco de liquidez.
 - Separação real/simulado reforçada no Test Mode com aviso explícito de isolamento econômico.
+
+
+## Atualização 2026-05-06 — PR 12 visual premium inicial
+- Camada visual premium inicial adicionada no frontend com tokens globais e componentes de design system reutilizáveis.
+- Sem impacto econômico: não altera saldo, preço, Trade, MarketOrder, CompanyHolding ou taxa 50/50.
+- Sem backend e sem migration nesta etapa.
+- Avisos econômicos e de simulação RP preservados nos fluxos existentes.

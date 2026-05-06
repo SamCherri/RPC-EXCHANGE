@@ -312,3 +312,10 @@ Telas impactadas nesta etapa:
 Limitações e pendências:
 - Esta etapa não implementa visual premium, gráfico premium nem livro de ordens premium.
 - Cobertura dos novos componentes será expandida gradualmente para todos os fluxos sensíveis restantes.
+
+
+## Design system visual inicial
+- Introduzidos tokens visuais globais (cores, radius, shadow, spacing e tipografia base) em `frontend/src/styles.css`.
+- Componentes visuais reutilizáveis criados: `PageShell`, `PremiumCard`, `SectionHeader`, `StatusBadge`, `EmptyState`, `LoadingState` e `InfoCallout`, além da evolução de `MetricCard`.
+- Objetivo: consistência visual premium inicial, manutenção de mobile-first e reaproveitamento sem alterar lógica econômica.
+- Limites desta PR: sem refactor econômico, sem backend/migration, sem gráfico premium avançado e sem livro de ordens premium completo.
