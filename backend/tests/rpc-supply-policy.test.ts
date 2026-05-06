@@ -12,8 +12,9 @@ const PWD = 'Admin@123';
 async function resetDb() {
   await prisma.$transaction([
     prisma.projectHolderDistributionPayment.deleteMany(), prisma.projectHolderDistributionSnapshot.deleteMany(), prisma.projectHolderDistributionProgram.deleteMany(),
-    prisma.projectBuybackExecution.deleteMany(), prisma.projectBuybackProgram.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyHolding.deleteMany(), prisma.company.deleteMany(),
-    prisma.companyRevenueAccount.deleteMany(), prisma.coinIssuance.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.withdrawalRequest.deleteMany(),
+    prisma.projectBuybackExecution.deleteMany(), prisma.projectBuybackProgram.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyHolding.deleteMany(),
+    prisma.companyRevenueAccount.deleteMany(), prisma.company.deleteMany(),
+    prisma.coinIssuance.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.withdrawalRequest.deleteMany(),
     prisma.brokerAccount.deleteMany(), prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(),
     prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.testModeWallet.deleteMany(),
   ]);
