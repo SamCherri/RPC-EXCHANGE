@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { BrandLogo } from '../components/BrandLogo';
 import { api } from '../services/api';
 
 type RegisterPageProps = {
@@ -40,11 +41,8 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
 
   return (
     <section className="auth-panel nested-card">
-      <div className="auth-logo-container">
-        <img src="/assets/logo-full.png" alt="RPC Exchange" className="auth-logo" />
-      </div>
-      
       <div className="auth-header">
+        <BrandLogo size="md" subtitle />
         <h2>Criar conta</h2>
         <p className="auth-subtitle">Junte-se à comunidade RPC Exchange</p>
       </div>

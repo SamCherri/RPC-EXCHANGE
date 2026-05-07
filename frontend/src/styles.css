@@ -33,10 +33,33 @@ body { margin: 0; min-height: 100vh; background: linear-gradient(180deg, #090f1d
   transition: all var(--transition-normal);
 }
 .card:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--border-focus);
-  box-shadow: var(--shadow-hover);
+  border-color: rgba(148, 163, 184, 0.35);
 }
+
+
+.brand-logo { display: inline-flex; align-items: center; gap: 10px; }
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  color: #f8fafc;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.28);
+}
+.brand-text-wrap { display: grid; gap: 2px; text-align: left; }
+.brand-title { font-size: 1rem; line-height: 1.1; color: var(--text-primary); }
+.brand-subtitle { color: var(--text-muted); font-size: 0.75rem; }
+.brand-logo-sm .brand-mark { width: 32px; height: 32px; font-size: 0.58rem; border-radius: 10px; }
+.brand-logo-sm .brand-title { font-size: 0.9rem; }
+.brand-logo-sm .brand-subtitle { font-size: 0.68rem; }
+.brand-logo-md .brand-mark { width: 44px; height: 44px; font-size: 0.75rem; }
+.brand-logo-md .brand-title { font-size: 1.05rem; }
+.brand-logo-hero .brand-mark { width: 56px; height: 56px; font-size: 0.92rem; }
+.brand-logo-hero .brand-title { font-size: 1.35rem; }
+.brand-logo-hero .brand-subtitle { font-size: 0.82rem; }
 
 .public-entry-card { width: min(100%, 470px); }
 .public-entry-header { text-align: center; }

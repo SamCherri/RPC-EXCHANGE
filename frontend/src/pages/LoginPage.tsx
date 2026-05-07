@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { BrandLogo } from '../components/BrandLogo';
 import { api } from '../services/api';
 
 type LoginPageProps = {
@@ -32,11 +33,8 @@ export function LoginPage({ onSuccess, onSwitchRegister }: LoginPageProps) {
 
   return (
     <section className="auth-panel nested-card">
-      <div className="auth-logo-container">
-        <img src="/assets/logo-full.png" alt="RPC Exchange" className="auth-logo" />
-      </div>
-      
       <div className="auth-header">
+        <BrandLogo size="md" subtitle />
         <h2>Bem-vindo à RPC Exchange</h2>
         <p className="auth-subtitle">Simulação econômica para Roleplay</p>
       </div>

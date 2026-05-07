@@ -13,6 +13,7 @@ import { TestModePage } from './pages/TestModePage';
 import { TestModeRankingPage } from './pages/TestModeRankingPage';
 import { TestModeReportPage } from './pages/TestModeReportPage';
 import { api, getCurrentUser, CurrentUserResponse } from './services/api';
+import { BrandLogo } from './components/BrandLogo';
 import { SideDrawer, SideDrawerItem } from './components/SideDrawer';
 
 type PublicTab = 'login' | 'register';
@@ -262,8 +263,8 @@ export function App() {
       <main className="container auth-shell">
         <section className="card public-entry-card">
           <header className="public-entry-header">
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <img src="/assets/logo-full.png" alt="RPC Exchange" style={{ maxWidth: '320px', height: 'auto' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <BrandLogo size="hero" subtitle={false} />
             </div>
             <p className="warning">Esta é uma ferramenta de simulação/interpretação de uma exchange. Nenhum valor possui conversão para dinheiro real.</p>
             <p className="info-text">Sem cripto real, sem blockchain, sem Pix, sem cartão e sem gateway de pagamento.</p>
@@ -323,11 +324,7 @@ export function App() {
           )}
           <button className="hamburger-button mobile-only" type="button" aria-label="Abrir menu" onClick={() => setIsGlobalDrawerOpen(true)}>☰</button>
           <div className="mobile-topbar-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/assets/rpc_exchange_icon.png" alt="RPC" style={{ width: '42px', height: '42px' }} />
-            <div style={{ textAlign: 'left' }}>
-              <span className="mobile-topbar-badge">Simulação RP</span>
-              <img src="/assets/logo-full.png" alt="RPC Exchange" style={{ height: '24px', width: 'auto', display: 'block' }} />
-            </div>
+            <BrandLogo size="sm" subtitle={false} />
           </div>
           <button className="button-danger small-button desktop-only" onClick={handleLogout}>
             Sair
@@ -363,7 +360,7 @@ export function App() {
             <div className="mobile-hero-card">
               <span className="mobile-hero-kicker">Painel principal</span>
               <div style={{ marginBottom: '10px' }}>
-                <img src="/assets/logo-full.png" alt="RPC Exchange" style={{ maxWidth: '240px', height: 'auto' }} />
+                <BrandLogo size="md" subtitle={false} />
               </div>
               <p>Negocie tokens, acompanhe sua carteira e acesse seus painéis pelo menu.</p>
             </div>

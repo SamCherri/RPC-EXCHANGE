@@ -5,38 +5,16 @@ type BrandLogoProps = {
   className?: string;
 };
 
-const sizeMap = {
-  sm: { icon: 32, logo: 120 },
-  md: { icon: 44, logo: 180 },
-  hero: { icon: 56, logo: 240 },
-};
-
 export function BrandLogo({ size = 'md', subtitle = true, markOnly = false, className = '' }: BrandLogoProps) {
-  const dimensions = sizeMap[size];
-
-  if (markOnly) {
-    return (
-      <div className={`brand-logo brand-logo-${size} ${className}`.trim()}>
-        <img
-          src="/assets/rpc_exchange_icon.png"
-          alt="RPC"
-          width={dimensions.icon}
-          height={dimensions.icon}
-          style={{ display: 'block' }}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className={`brand-logo brand-logo-${size} ${className}`.trim()}>
-      <img
-        src="/assets/logo-full.png"
-        alt="RPC Exchange"
-        width={dimensions.logo}
-        style={{ display: 'block', height: 'auto' }}
-      />
-      {!subtitle && size === 'sm' ? null : null}
+      <span className="brand-mark" aria-hidden="true">RPC</span>
+      {!markOnly ? (
+        <span className="brand-text-wrap">
+          <strong className="brand-title">RPC Exchange</strong>
+          {subtitle ? <small className="brand-subtitle">Simulação econômica RP</small> : null}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { BrandLogo } from './BrandLogo';
 
 export type SideDrawerItem = {
   key: string;
@@ -47,7 +48,7 @@ export function SideDrawer({ title, subtitle, open, onClose, items }: SideDrawer
       >
         <header className="side-drawer-header">
           <div style={{ marginRight: '12px', display: 'flex', alignItems: 'center' }}>
-            <img src="/assets/rpc_exchange_icon.png" alt="RPC" style={{ width: '32px', height: '32px' }} />
+            <BrandLogo size="sm" markOnly />
           </div>
           <div className="side-drawer-title">
             <strong>{title}</strong>
