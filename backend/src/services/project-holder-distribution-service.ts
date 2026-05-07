@@ -109,6 +109,13 @@ export async function executeHolderDistributionProgram(input: { programId: strin
       await tx.projectHolderDistributionSnapshot.update({ where: { id: snap.id }, data: { status: 'PAID', paidAmountRpc: snap.calculatedAmountRpc, paidAt: new Date() } });
       totalPaid = totalPaid.add(snap.calculatedAmountRpc);
     }
+    const forceSkipped = await tx.projectHolderDistributionSnapshot.updateMany({ where: { programId: program.id, status: 'PENDING' }, data: { status: 'SKIPPED' } });
+    if (forceSkipped.count > 0) skipped += forceSkipped.count;
+
+    const finalizedSnapshots = await tx.projectHolderDistributionSnapshot.findMany({ where: { programId: program.id } });
+    const hasPending = finalizedSnapshots.some((snapshot) => snapshot.status === 'PENDING');
+    if (hasPending) throw new HttpError(409, 'Inconsistência: snapshot PENDING após execução.');
+
     const refund = round2(program.budgetRpc.sub(totalPaid));
     if (refund.gt(0)) await tx.companyRevenueAccount.update({ where: { companyId: program.companyId }, data: { balance: { increment: refund } } });
 
@@ -131,6 +138,8 @@ export async function cancelHolderDistributionProgram(input: { programId: string
     const pending = await tx.projectHolderDistributionSnapshot.findMany({ where: { programId: program.id, status: 'PENDING' } });
     const refund = pending.reduce((acc, s) => acc.add(s.calculatedAmountRpc), ZERO);
     await tx.projectHolderDistributionSnapshot.updateMany({ where: { programId: program.id, status: 'PENDING' }, data: { status: 'SKIPPED' } });
+    const pendingAfterCancel = await tx.projectHolderDistributionSnapshot.count({ where: { programId: program.id, status: 'PENDING' } });
+    if (pendingAfterCancel > 0) throw new HttpError(409, 'Inconsistência: snapshot PENDING após cancelamento.');
     if (refund.gt(0)) await tx.companyRevenueAccount.update({ where: { companyId: program.companyId }, data: { balance: { increment: refund } } });
     const updated = await tx.projectHolderDistributionProgram.update({ where: { id: program.id }, data: { status: 'CANCELED', refundedRpc: refund, canceledAt: new Date() } });
     await tx.adminLog.create({ data: { userId: input.actorUserId, action: 'PROJECT_HOLDER_DISTRIBUTION_CANCEL', entity: 'ProjectHolderDistributionProgram', reason: 'Cancelamento de distribuição para holders', current: JSON.stringify({ programId: program.id, refundedRpc: String(refund) }), ip: input.ip ?? null, userAgent: input.userAgent ?? null } });
