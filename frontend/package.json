@@ -16,13 +16,13 @@
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173} --strictPort"
   },
   "dependencies": {
-    "@capacitor/android": "^7.6.6",
-    "@capacitor/core": "^7.6.6",
+    "@capacitor/android": "^7.6.0",
+    "@capacitor/core": "^7.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.6.6",
+    "@capacitor/cli": "^7.6.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
