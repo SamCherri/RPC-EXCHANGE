@@ -43,6 +43,7 @@ O banco oficial é **PostgreSQL/Postgres** com **Prisma ORM** usando `DATABASE_U
 ## Estrutura
 
 - `frontend/`: React + Vite + TypeScript (painéis iniciais).
+- `frontend/capacitor.config.ts`: configuração do aplicativo Android via Capacitor.
 - `backend/`: Fastify + Prisma + TypeScript (API e regras de backend).
 - `docs/`: documentação principal da simulação.
 - `assets/`: recursos visuais e logotipos da plataforma.
@@ -72,6 +73,65 @@ Use `.env.example` como referência.
 ### Frontend
 
 - `VITE_API_URL` (URL pública do backend)
+
+Para o APK Android, `VITE_API_URL` deve ser uma URL pública com HTTPS. O backend
+continua hospedado separadamente e não é incluído no APK.
+
+## Aplicativo Android (Capacitor)
+
+O aplicativo Android empacota somente o frontend da RPC Exchange. A API Fastify,
+o Prisma e o PostgreSQL continuam online no serviço de backend.
+
+### Configurar a API usada pelo APK
+
+No GitHub:
+
+1. Abra o repositório e clique em **Settings**.
+2. Acesse **Secrets and variables > Actions**.
+3. Abra a aba **Variables**.
+4. Clique em **New repository variable**.
+5. Use o nome `VITE_API_URL`.
+6. Informe a URL pública HTTPS do backend, sem `/api` no final. Exemplo:
+   `https://seu-backend.up.railway.app`.
+
+O build Android falha de propósito se a variável estiver vazia, usar HTTP ou
+apontar para `localhost`, evitando distribuir um APK que não consiga acessar a
+API.
+
+### Gerar e sincronizar localmente
+
+Com Android Studio/JDK instalados e a URL pública configurada:
+
+```bash
+export VITE_API_URL="https://seu-backend.up.railway.app"
+npm install
+npm run build:android --workspace frontend
+cd frontend
+npx cap add android
+npx cap sync android
+```
+
+O comando `npx cap add android` é necessário somente na primeira geração da
+plataforma. Para atualizações seguintes, use:
+
+```bash
+export VITE_API_URL="https://seu-backend.up.railway.app"
+npm run android:sync --workspace frontend
+```
+
+### Baixar o APK gerado automaticamente
+
+1. No GitHub, abra a aba **Actions**.
+2. Selecione o workflow **Android Debug APK**.
+3. Abra a execução mais recente concluída com sucesso.
+4. Na seção **Artifacts**, baixe `rpc-exchange-debug-apk`.
+5. Extraia o arquivo compactado para obter `app-debug.apk`.
+
+O workflow roda automaticamente em pushes para `main` ou `master` e também pode
+ser iniciado pelo botão **Run workflow**. O artifact fica disponível por 30
+dias. Esse é um APK de depuração para testes e instalação manual; publicação na
+Google Play exige posteriormente assinatura e configuração de uma versão
+release.
 
 ## Setup local
 
