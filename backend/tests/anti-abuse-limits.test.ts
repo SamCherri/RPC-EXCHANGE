@@ -19,7 +19,7 @@ async function resetDb() {
 }
 
 async function mkUser(email: string) {
-  return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash('123456', 10), wallet: { create: { fiatAvailableBalance: 10000, rpcAvailableBalance: 10000 } } } });
+  return prisma.user.create({ data: { email, discord: email.replace(/[^a-z0-9]/gi, '_').toLowerCase(), gamePhone: `TEST-${email.replace(/[^a-z0-9]/gi, '_').slice(0, 24)}`, name: email, passwordHash: await bcrypt.hash('123456', 10), wallet: { create: { fiatAvailableBalance: 10000, rpcAvailableBalance: 10000 } } } });
 }
 
 async function token(userId: string, roles: string[] = ['USER']) { return app.jwt.sign({ sub: userId, roles }); }

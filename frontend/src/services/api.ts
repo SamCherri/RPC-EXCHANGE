@@ -39,9 +39,10 @@ export type CurrentUserResponse = {
   user: {
     id: string;
     name: string;
-    email: string;
+    email?: string | null;
+    discord: string;
     characterName?: string | null;
-    bankAccountNumber?: string | null;
+    gamePhone: string;
     roles: string[];
     isBlocked: boolean;
     createdAt: string;

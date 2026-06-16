@@ -9,8 +9,8 @@ type RegisterPageProps = {
 export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
   const [name, setName] = useState('');
   const [characterName, setCharacterName] = useState('');
-  const [bankAccountNumber, setBankAccountNumber] = useState('');
-  const [email, setEmail] = useState('');
+  const [discord, setDiscord] = useState('');
+  const [gamePhone, setGamePhone] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,14 +21,14 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
     try {
       await api('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, characterName, bankAccountNumber, email, password }),
+        body: JSON.stringify({ name, characterName, discord, gamePhone, password }),
       });
       setMessage('✓ Conta criada com sucesso! Redirecionando para login...');
       setTimeout(() => {
         setName('');
         setCharacterName('');
-        setBankAccountNumber('');
-        setEmail('');
+        setDiscord('');
+        setGamePhone('');
         setPassword('');
         if (onSwitchLogin) onSwitchLogin();
       }, 1500);
@@ -72,28 +72,29 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
         </label>
 
         <label>
-          <span className="label-text">Número da conta bancária</span>
+          <span className="label-text">Discord</span>
           <input 
-            placeholder="Ex.: RP-12345" 
-            value={bankAccountNumber} 
-            onChange={(event) => setBankAccountNumber(event.target.value)} 
+            placeholder="Seu Discord no RP" 
+            value={discord} 
+            onChange={(event) => setDiscord(event.target.value)} 
+            disabled={isLoading}
+            required 
+            minLength={2} 
+          />
+          <small className="label-hint">Será usado como identificador principal para entrar no app.</small>
+        </label>
+
+        <label>
+          <span className="label-text">Telefone do jogo</span>
+          <input 
+            placeholder="Ex.: 000-000" 
+            value={gamePhone} 
+            onChange={(event) => setGamePhone(event.target.value)} 
             disabled={isLoading}
             required 
             minLength={3} 
           />
-          <small className="label-hint">Fictícia, usada apenas no RP</small>
-        </label>
-
-        <label>
-          <span className="label-text">E-mail</span>
-          <input 
-            placeholder="seu.email@exemplo.com" 
-            type="email" 
-            value={email} 
-            onChange={(event) => setEmail(event.target.value)} 
-            disabled={isLoading}
-            required 
-          />
+          <small className="label-hint">Número do personagem dentro do RP.</small>
         </label>
 
         <label>

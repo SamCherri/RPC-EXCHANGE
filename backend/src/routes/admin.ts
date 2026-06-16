@@ -35,6 +35,8 @@ async function resolveUniqueUserByRef(
     where: {
       ...(roleKey ? { roles: { some: { role: { key: roleKey } } } } : {}),
       OR: [
+        { discord: { equals: trimmedRef.toLowerCase(), mode: 'insensitive' } },
+        { gamePhone: { equals: trimmedRef, mode: 'insensitive' } },
         { bankAccountNumber: { equals: trimmedRef } },
         { characterName: { equals: trimmedRef, mode: 'insensitive' } },
         { name: { equals: trimmedRef, mode: 'insensitive' } },
@@ -46,7 +48,7 @@ async function resolveUniqueUserByRef(
   });
 
   if (candidates.length === 0) throw new Error('Usuário não encontrado.');
-  if (candidates.length > 1) throw new Error('Referência ambígua. Use a Conta RP exata ou o email técnico.');
+  if (candidates.length > 1) throw new Error('Referência ambígua. Use o Discord exato, telefone do jogo ou ID.');
   return candidates[0];
 }
 

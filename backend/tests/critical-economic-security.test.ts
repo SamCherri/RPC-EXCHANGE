@@ -54,7 +54,7 @@ async function resetDb() {
 }
 
 async function mkUser(email: string, name = 'User') {
-  return prisma.user.create({ data: { email, name, passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
+  return prisma.user.create({ data: { email, discord: email.replace(/[^a-z0-9]/gi, '_').toLowerCase(), gamePhone: `TEST-${email.replace(/[^a-z0-9]/gi, '_').slice(0, 24)}`, name, passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
 }
 
 async function mkRole(key: string) {
@@ -708,30 +708,43 @@ test('mercado RPC/R$ mantém singleton, cotação e integridade econômica', asy
   assert.ok(Number(platform.totalReceivedFees) > 0);
 });
 
-test('cadastro salva characterName e bankAccountNumber e /auth/me retorna campos', async () => {
+test('cadastro por Discord cria wallet, valida duplicidade e preserva dados econômicos', async () => {
   await resetDb();
   await mkRole('USER');
 
-  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', bankAccountNumber: 'RP-001', email: 'register@test.local', password: '12345678' } });
+  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', discord: '@PlayerOne', gamePhone: '555-001', password: '12345678' } });
   assert.equal(register.statusCode, 201, register.body);
   const payload = register.json();
   assert.equal(payload.characterName, 'Kenshin');
-  assert.equal(payload.bankAccountNumber, 'RP-001');
+  assert.equal(payload.discord, 'playerone');
+  assert.equal(payload.gamePhone, '555-001');
 
-  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'register@test.local', password: '12345678' } });
+  const created = await prisma.user.findUniqueOrThrow({ where: { discord: 'playerone' }, include: { wallet: true } });
+  assert.ok(created.wallet, 'wallet deve ser criada automaticamente');
+  assert.equal(Number(created.wallet?.availableBalance ?? 0), 0);
+  assert.equal(Number(created.wallet?.lockedBalance ?? 0), 0);
+  assert.equal(await prisma.marketOrder.count({ where: { userId: created.id } }), 0);
+
+  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discord: '  @PLAYERONE  ', password: '12345678' } });
   assert.equal(login.statusCode, 200, login.body);
   const tokenValue = login.json().token;
 
   const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${tokenValue}` } });
   assert.equal(me.statusCode, 200, me.body);
   assert.equal(me.json().user.characterName, 'Kenshin');
-  assert.equal(me.json().user.bankAccountNumber, 'RP-001');
+  assert.equal(me.json().user.discord, 'playerone');
+  assert.equal(me.json().user.gamePhone, '555-001');
 
-  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', bankAccountNumber: 'RP-002', email: 'invalid-char@test.local', password: '12345678' } });
+  const duplicateDiscord = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ValidName', discord: 'playerone', gamePhone: '555-002', password: '12345678' } });
+  assert.equal(duplicateDiscord.statusCode, 400);
+  assert.match(duplicateDiscord.body, /Discord já cadastrado/);
+
+  const duplicatePhone = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Three', characterName: 'ValidName', discord: 'playerthree', gamePhone: '555-001', password: '12345678' } });
+  assert.equal(duplicatePhone.statusCode, 400);
+  assert.match(duplicatePhone.body, /Telefone do jogo já cadastrado/);
+
+  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', discord: 'invalidchar', gamePhone: '555-003', password: '12345678' } });
   assert.equal(invalidCharacter.statusCode, 400);
-
-  const invalidBank = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Three', characterName: 'ValidName', bankAccountNumber: '12', email: 'invalid-bank@test.local', password: '12345678' } });
-  assert.equal(invalidBank.statusCode, 400);
 });
 
 test('permissões e regras de liquidez RPC/R$ com AdminLog', async () => {

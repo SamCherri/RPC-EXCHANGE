@@ -242,6 +242,8 @@ export async function withdrawalsRoutes(app: FastifyInstance) {
         ...((query.userRef || query.userEmail) ? { user: { OR: [
           ...(query.userEmail ? [{ email: query.userEmail.toLowerCase() }] : []),
           ...(query.userRef ? [
+            { discord: { contains: query.userRef.toLowerCase(), mode: 'insensitive' as const } },
+            { gamePhone: { contains: query.userRef, mode: 'insensitive' as const } },
             { bankAccountNumber: { contains: query.userRef, mode: 'insensitive' as const } },
             { characterName: { contains: query.userRef, mode: 'insensitive' as const } },
             { name: { contains: query.userRef, mode: 'insensitive' as const } },
@@ -250,7 +252,7 @@ export async function withdrawalsRoutes(app: FastifyInstance) {
         ] } } : {}),
       },
       include: {
-        user: { select: { id: true, name: true, email: true, characterName: true, bankAccountNumber: true } },
+        user: { select: { id: true, name: true, email: true, discord: true, gamePhone: true, characterName: true, bankAccountNumber: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 200,

@@ -18,6 +18,7 @@
     "build:frontend": "npm run build --workspace frontend",
     "start:backend": "npm run start --workspace backend",
     "lint": "npm run lint --workspaces",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm test --workspace backend"
   }
 }

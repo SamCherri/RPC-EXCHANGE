@@ -3,6 +3,62 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+async function findSeedUser(params: { discord: string; emails: string[] }) {
+  return prisma.user.findFirst({
+    where: {
+      OR: [
+        { discord: params.discord },
+        ...params.emails.map((email) => ({ email })),
+      ],
+    },
+  });
+}
+
+async function upsertSeedUser(params: {
+  discord: string;
+  gamePhone: string;
+  email: string;
+  legacyEmails?: string[];
+  name: string;
+  characterName: string;
+  passwordHash: string;
+  preservePassword?: boolean;
+}) {
+  const existing = await findSeedUser({ discord: params.discord, emails: [params.email, ...(params.legacyEmails ?? [])] });
+
+  const user = existing
+    ? await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name: params.name,
+          characterName: params.characterName,
+          discord: params.discord,
+          gamePhone: params.gamePhone,
+          email: params.email,
+          passwordHash: params.preservePassword ? existing.passwordHash : params.passwordHash,
+        },
+      })
+    : await prisma.user.create({
+        data: {
+          name: params.name,
+          characterName: params.characterName,
+          discord: params.discord,
+          gamePhone: params.gamePhone,
+          email: params.email,
+          passwordHash: params.passwordHash,
+          wallet: { create: {} },
+        },
+      });
+
+  await prisma.wallet.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: { userId: user.id },
+  });
+
+  return user;
+}
+
 async function seedDemoData(params: {
   userRoleId: string;
   brokerRoleId: string;
@@ -11,30 +67,18 @@ async function seedDemoData(params: {
 
   const demoEmailLegacy = 'jogador@bolsavirtual.local';
   const demoEmail = 'jogador@rpc.exchange.local';
-  const demoRpc = await prisma.user.findUnique({ where: { email: demoEmail } });
-  const demoLegacy = await prisma.user.findUnique({ where: { email: demoEmailLegacy } });
 
   // usuário demo base (RPC Exchange), reaproveitando conta legada quando existir
-  const userDemo = demoRpc
-    ? demoRpc
-    : demoLegacy
-      ? await prisma.user.update({
-          where: { id: demoLegacy.id },
-          data: {
-            email: demoEmail,
-            name: demoLegacy.name || 'Jogador Demo',
-          },
-        })
-      : await prisma.user.upsert({
-          where: { email: demoEmail },
-          update: {},
-          create: {
-            name: 'Jogador Demo',
-            email: demoEmail,
-            passwordHash: await bcrypt.hash('Jogador123!', 10),
-            wallet: { create: {} },
-          },
-        });
+  const userDemo = await upsertSeedUser({
+    discord: 'jogador_demo',
+    gamePhone: '000-001',
+    email: demoEmail,
+    legacyEmails: [demoEmailLegacy],
+    name: 'Jogador Demo',
+    characterName: 'Jogador_Demo',
+    passwordHash: await bcrypt.hash('Jogador123!', 10),
+    preservePassword: true,
+  });
 
   await prisma.wallet.upsert({
     where: { userId: userDemo.id },
@@ -102,15 +146,15 @@ async function seedDemoData(params: {
     create: { companyId: companyDemo.id },
   });
 
-  const brokerDemo = await prisma.user.upsert({
-    where: { email: 'corretor@rpc.exchange.local' },
-    update: {},
-    create: {
-      name: 'Corretor Demo',
-      email: 'corretor@rpc.exchange.local',
-      passwordHash: await bcrypt.hash('Corretor123!', 10),
-      wallet: { create: {} },
-    },
+  const brokerDemo = await upsertSeedUser({
+    discord: 'corretor_demo',
+    gamePhone: '000-002',
+    email: 'corretor@rpc.exchange.local',
+    legacyEmails: ['corretor@bolsavirtual.local'],
+    name: 'Corretor Demo',
+    characterName: 'Corretor_Demo',
+    passwordHash: await bcrypt.hash('Corretor123!', 10),
+    preservePassword: true,
   });
 
   await prisma.userRole.upsert({
@@ -167,19 +211,16 @@ async function main() {
 
   const adminEmailLegacy = 'admin@bolsavirtual.local';
   const adminEmail = 'admin@rpc.exchange.local';
-  const passwordHash = await bcrypt.hash('Admin1234!', 10);
 
-  const adminLegacy = await prisma.user.findUnique({ where: { email: adminEmailLegacy } });
-
-  const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {},
-    create: {
-      name: adminLegacy?.name ?? 'Super Admin Inicial',
-      email: adminEmail,
-      passwordHash,
-      wallet: { create: {} },
-    },
+  const admin = await upsertSeedUser({
+    discord: 'admin',
+    gamePhone: '000-000',
+    email: adminEmail,
+    legacyEmails: [adminEmailLegacy],
+    name: 'Administrador',
+    characterName: 'Admin_RPC',
+    passwordHash: await bcrypt.hash('Admin1234!', 10),
+    preservePassword: true,
   });
 
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: admin.id, roleId: superAdminRole.id } }, update: {}, create: { userId: admin.id, roleId: superAdminRole.id } });

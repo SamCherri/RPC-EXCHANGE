@@ -45,6 +45,8 @@ export async function adminUsersRoutes(app: FastifyInstance) {
         ...(query.search ? {
           OR: [
             { name: { contains: query.search, mode: 'insensitive' } },
+            { discord: { contains: query.search, mode: 'insensitive' } },
+            { gamePhone: { contains: query.search, mode: 'insensitive' } },
             { email: { contains: query.search, mode: 'insensitive' } },
             { characterName: { contains: query.search, mode: 'insensitive' } },
             { bankAccountNumber: { contains: query.search, mode: 'insensitive' } },
@@ -62,10 +64,12 @@ export async function adminUsersRoutes(app: FastifyInstance) {
     });
 
     return {
-      users: users.map((user: { id: string; name: string | null; email: string; characterName: string | null; bankAccountNumber: string | null; roles: Array<{ role: { key: string } }>; isBlocked: boolean; wallet: { availableBalance: unknown; lockedBalance: unknown; pendingWithdrawalBalance: unknown } | null; createdAt: Date }) => ({
+      users: users.map((user: { id: string; name: string | null; email: string | null; discord: string; gamePhone: string; characterName: string | null; bankAccountNumber: string | null; roles: Array<{ role: { key: string } }>; isBlocked: boolean; wallet: { availableBalance: unknown; lockedBalance: unknown; pendingWithdrawalBalance: unknown } | null; createdAt: Date }) => ({
         id: user.id,
         name: user.name,
         email: user.email,
+        discord: user.discord,
+        gamePhone: user.gamePhone,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
         roles: user.roles.map((role: { role: { key: string } }) => role.role.key),
@@ -128,6 +132,8 @@ export async function adminUsersRoutes(app: FastifyInstance) {
         id: user.id,
         name: user.name,
         email: user.email,
+        discord: user.discord,
+        gamePhone: user.gamePhone,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
         isBlocked: user.isBlocked,
