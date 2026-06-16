@@ -233,10 +233,6 @@ export function App() {
 
   const showInstallCard = !isInstalled;
 
-  if (registrationBlocked) {
-    return <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />;
-  }
-
   const globalDrawerItems = useMemo<SideDrawerItem[]>(() => {
     const items: SideDrawerItem[] = [
       ...(shouldShowTestModeEntry ? [
@@ -263,6 +259,10 @@ export function App() {
     items.push({ key: 'logout', label: 'Sair', icon: '🚪', danger: true, section: 'danger', onClick: handleLogout });
     return items;
   }, [canSeeMyProjects, handleLogout, isTestModeRestrictedUser, roles.canSeeAdmin, roles.canSeeBroker, screen, shouldShowTestModeEntry]);
+
+  if (registrationBlocked) {
+    return <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />;
+  }
 
   if (!token) {
     return (

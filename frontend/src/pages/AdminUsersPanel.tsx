@@ -233,7 +233,7 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
               <button type="button" className="button-secondary" onClick={() => openRegistrationProof(user)}>Abrir screenshot</button>
               <button type="button" className="button-success" onClick={() => reviewRegistration(user, 'APPROVED')}>Aprovar cadastro</button>
               <button type="button" className="button-secondary" onClick={() => reviewRegistration(user, 'NEEDS_CORRECTION')}>Pedir correção</button>
-              <button type="button" className="button-primary" onClick={() => saveFinancialPermissions(user, ['RPC_MARKET_TRADE','COMPANY_MARKET_TRADE','PROJECT_CREATE','WITHDRAWAL_REQUEST'])}>Conceder permissões financeiras</button>
+              <button type="button" className="button-primary" onClick={() => saveFinancialPermissions(user, ['RPC_MARKET_TRADE','COMPANY_MARKET_TRADE','PROJECT_CREATE','WITHDRAWAL_REQUEST','BROKER_TRANSFER'])}>Conceder permissões financeiras</button>
               {user.isBlocked ? (
                 <button type="button" className="button-success" onClick={() => openBlockModal(user.id, 'unblock')} disabled={isSubmittingAction}>Desbloquear</button>
               ) : (

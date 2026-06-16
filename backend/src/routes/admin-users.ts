@@ -159,7 +159,7 @@ export async function adminUsersRoutes(app: FastifyInstance) {
     if (!ensureAdmin(reply, roles)) return;
     const users = await prisma.user.findMany({
       where: { approvalStatus: { in: ['PENDING', 'NEEDS_CORRECTION'] } },
-      include: { registrationProof: { select: { id: true, mimeType: true, fileName: true, checksum: true, updatedAt: true } } },
+      select: { id: true, name: true, email: true, characterName: true, bankAccountNumber: true, discordId: true, characterPhone: true, approvalStatus: true, approvalNote: true, createdAt: true, registrationProof: { select: { id: true, mimeType: true, fileName: true, checksum: true, updatedAt: true } } },
       orderBy: { createdAt: 'asc' },
       take: 200,
     });

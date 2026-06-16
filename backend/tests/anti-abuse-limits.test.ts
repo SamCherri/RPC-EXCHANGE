@@ -14,18 +14,25 @@ async function resetDb() {
   await prisma.$transaction([
     prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.rpcLimitOrder.deleteMany(), prisma.rpcExchangeTrade.deleteMany(), prisma.withdrawalRequest.deleteMany(),
     prisma.testModeReport.deleteMany(), prisma.companyOperation.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.companyBoostInjection.deleteMany(), prisma.companyBoostAccount.deleteMany(), prisma.company.deleteMany(),
-    prisma.transaction.deleteMany(), prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(), prisma.systemModeConfig.deleteMany(),
+    prisma.transaction.deleteMany(), prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(),
+    prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(), prisma.systemModeConfig.deleteMany(),
   ]);
 }
 
 async function mkUser(email: string) {
-  return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash('123456', 10), wallet: { create: { fiatAvailableBalance: 10000, rpcAvailableBalance: 10000 } } } });
+  const user = await prisma.user.create({ data: { email, name: email, approvalStatus: 'APPROVED', passwordHash: await bcrypt.hash('123456', 10), wallet: { create: { fiatAvailableBalance: 10000, rpcAvailableBalance: 10000 } } } });
+  await grantTestFinancialPermissions(user.id);
+  return user;
 }
 
 async function token(userId: string, roles: string[] = ['USER']) { return app.jwt.sign({ sub: userId, roles }); }
 
 async function mkCompany(ownerId: string, ticker: string) {
   return prisma.company.create({ data: { name: ticker, ticker, description: 'desc', sector: 'setor', founderUserId: ownerId, status: 'ACTIVE', totalShares: 1000, circulatingShares: 100, ownerSharePercent: 40, publicOfferPercent: 60, ownerShares: 400, publicOfferShares: 600, availableOfferShares: 500, initialPrice: 10, currentPrice: 10, buyFeePercent: 1, sellFeePercent: 1, fictitiousMarketCap: 10000, approvedAt: new Date(), revenueAccount: { create: {} } } });
+}
+
+async function grantTestFinancialPermissions(userId: string) {
+  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
 }
 
 test.before(async () => { await app.ready(); });

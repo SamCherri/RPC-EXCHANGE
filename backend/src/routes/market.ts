@@ -656,6 +656,7 @@ export async function marketRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
 
     try {
+      await assertFinancialPermission(authRequest.user.sub, 'COMPANY_MARKET_TRADE');
       const { companyId } = companyParams.parse(request.params);
       const body = marketOrderSchema.parse(request.body);
 
@@ -689,6 +690,7 @@ export async function marketRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
 
     try {
+      await assertFinancialPermission(authRequest.user.sub, 'COMPANY_MARKET_TRADE');
       const { companyId } = companyParams.parse(request.params);
       const body = marketOrderSchema.parse(request.body);
 

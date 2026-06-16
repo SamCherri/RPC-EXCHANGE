@@ -21,14 +21,19 @@ async function resetDb() {
     prisma.companyHolding.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.companyBoostInjection.deleteMany(),
     prisma.companyBoostAccount.deleteMany(), prisma.company.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.coinIssuance.deleteMany(),
     prisma.transaction.deleteMany(), prisma.withdrawalRequest.deleteMany(), prisma.adminLog.deleteMany(), prisma.brokerAccount.deleteMany(),
-    prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(),
+    prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(),
+    prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(),
     prisma.testModeReport.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(),
     prisma.systemModeConfig.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(),
   ]);
 }
 
+async function grantTestFinancialPermissions(userId: string) {
+  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
+}
+
 async function mkRole(key: string) { return prisma.role.create({ data: { key, name: key } }); }
-async function mkUser(email: string) { return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash('Admin@123', 10), wallet: { create: {} } } }); }
+async function mkUser(email: string) { const user = await prisma.user.create({ data: { email, name: email, approvalStatus: 'APPROVED', passwordHash: await bcrypt.hash('Admin@123', 10), wallet: { create: {} } } }); await grantTestFinancialPermissions(user.id); return user; }
 async function tk(userId: string, roles: string[]) { return app.jwt.sign({ sub: userId, roles }); }
 
 const dec = (v: unknown) => Number(v);

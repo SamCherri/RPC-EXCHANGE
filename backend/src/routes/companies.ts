@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma.js';
 import { MAX_COMPANY_TRADES_PER_MINUTE, MAX_PROJECT_CREATIONS_PER_DAY } from '../config/anti-abuse-limits.js';
 import { COMPANY_RULES } from '../constants/company-rules.js';
 import { distributeFee, ensureCompanyRevenueAccount } from '../services/fee-distribution-service.js';
-import { assertApprovedUser, assertFinancialPermission } from '../services/registration-approval-service.js';
+import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { validateDescriptionAllowed, validatePublicNameAllowed, validateTickerAllowed } from '../services/content-moderation-service.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -376,6 +376,7 @@ export async function companyRoutes(app: FastifyInstance) {
     const params = z.object({ id: z.string().min(1) }).parse(request.params);
 
     try {
+      await assertFinancialPermission(authRequest.user.sub, 'COMPANY_MARKET_TRADE');
       const body = buyInitialOfferSchema.parse(request.body);
 
       const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
