@@ -46,7 +46,7 @@ async function resetDb() {
 }
 
 async function mkUser(email: string) {
-  return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash('12345678', 10), wallet: { create: {} } } });
+  return prisma.user.create({ data: { email, discord: email.replace(/[^a-z0-9]/gi, '_').toLowerCase(), gamePhone: `TEST-${email.replace(/[^a-z0-9]/gi, '_').slice(0, 24)}`, name: email, passwordHash: await bcrypt.hash('12345678', 10), wallet: { create: {} } } });
 }
 async function token(userId: string, roles: string[] = ['USER']) { return app.jwt.sign({ sub: userId, roles }); }
 
@@ -87,12 +87,12 @@ test('permite projeto normal e reforça para usuário comum', async () => {
   assert.equal(ok.statusCode, 201, ok.body);
 });
 
-test('conta RP única no cadastro', async () => {
+test('telefone do jogo único no cadastro', async () => {
   await resetDb();
   await prisma.role.create({ data: { key: 'USER', name: 'Usuário' } });
 
-  const first = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User One', characterName: 'Cidadao Um', bankAccountNumber: 'RP-UNICO-1', email: 'cad1@test.local', password: '12345678' } });
+  const first = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User One', characterName: 'Cidadao Um', discord: 'cad1', gamePhone: 'RP-UNICO-1', password: '12345678', evidence: { fileName: 'proof.png', mimeType: 'image/png', dataBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' } } });
   assert.equal(first.statusCode, 201, first.body);
-  const second = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Two', characterName: 'Cidadao Dois', bankAccountNumber: 'RP-UNICO-1', email: 'cad2@test.local', password: '12345678' } });
-  assert.equal(second.statusCode, 400); assert.match(second.body, /Conta RP já está em uso por outro usuário/);
+  const second = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Two', characterName: 'Cidadao Dois', discord: 'cad2', gamePhone: 'RP-UNICO-1', password: '12345678', evidence: { fileName: 'proof.png', mimeType: 'image/png', dataBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' } } });
+  assert.equal(second.statusCode, 400); assert.match(second.body, /Telefone do jogo já cadastrado/);
 });

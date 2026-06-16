@@ -44,10 +44,12 @@ export type CurrentUserResponse = {
     characterName?: string | null;
     gamePhone: string;
     roles: string[];
+    approvalStatus?: 'PENDING' | 'CORRECTION_REQUIRED' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+    approvalReason?: string | null;
     isBlocked: boolean;
     createdAt: string;
   };
-  wallet: {
+  wallet: null | {
     fiatAvailableBalance: string | number;
     fiatLockedBalance: string | number;
     fiatPendingWithdrawalBalance: string | number;

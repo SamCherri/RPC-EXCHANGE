@@ -9,6 +9,8 @@ import { AdminMarketHealthPanel } from './AdminMarketHealthPanel';
 import { AdminReportsPanel } from './AdminReportsPanel';
 import { SideDrawer, SideDrawerItem } from '../components/SideDrawer';
 import { ConfirmActionModal } from '../components/ConfirmActionModal';
+import { AdminRegistrationsPanel } from './AdminRegistrationsPanel';
+import { AdminFinancialPermissionsPanel } from './AdminFinancialPermissionsPanel';
 
 type Overview = { users: number; companies: number; logs: number; treasuryBalance: string | number };
 type PlatformAccount = { balance: string | number; totalReceivedFees: string | number; totalWithdrawn: string | number; updatedAt: string | null };
@@ -21,7 +23,7 @@ type CompanyRevenueAccount = {
   totalReceivedFees: string | number;
   totalWithdrawn: string | number;
 };
-type ActiveTab = 'overview' | 'users' | 'brokers' | 'tokens' | 'withdrawals' | 'treasury' | 'liquidity' | 'revenues' | 'audit' | 'reports' | 'economic-alerts' | 'market-health' | 'test-mode';
+type ActiveTab = 'overview' | 'registrations' | 'financial-permissions' | 'users' | 'brokers' | 'tokens' | 'withdrawals' | 'treasury' | 'liquidity' | 'revenues' | 'audit' | 'reports' | 'economic-alerts' | 'market-health' | 'test-mode';
 
 type AdminConfirmAction =
   | 'issuance'
@@ -129,6 +131,8 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
 
   const adminTabLabels: Record<ActiveTab, string> = {
     overview: 'Visão geral',
+    registrations: 'Cadastros',
+    'financial-permissions': 'Permissões financeiras',
     users: 'Usuários',
     brokers: 'Corretores',
     tokens: 'Tokens/Mercados',
@@ -153,6 +157,8 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
 
   const adminDrawerItems: SideDrawerItem[] = [
     { key: 'overview', label: 'Visão geral', active: tab === 'overview', onClick: () => setTab('overview') },
+    { key: 'registrations', label: 'Cadastros', active: tab === 'registrations', onClick: () => setTab('registrations') },
+    { key: 'financial-permissions', label: 'Permissões financeiras', active: tab === 'financial-permissions', onClick: () => setTab('financial-permissions') },
     { key: 'users', label: 'Usuários', active: tab === 'users', onClick: () => setTab('users') },
     { key: 'brokers', label: 'Corretores', active: tab === 'brokers', onClick: () => setTab('brokers') },
     { key: 'tokens', label: 'Tokens/Mercados', active: tab === 'tokens', onClick: () => setTab('tokens') },
@@ -294,6 +300,8 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
 
       <nav className="pill-nav nested-card admin-nav desktop-only">
         <button className={tab === 'overview' ? 'pill active' : 'pill'} onClick={() => setTab('overview')}>Visão geral</button>
+        <button className={tab === 'registrations' ? 'pill active' : 'pill'} onClick={() => setTab('registrations')}>Cadastros</button>
+        <button className={tab === 'financial-permissions' ? 'pill active' : 'pill'} onClick={() => setTab('financial-permissions')}>Permissões financeiras</button>
         <button className={tab === 'users' ? 'pill active' : 'pill'} onClick={() => setTab('users')}>Usuários</button>
         <button className={tab === 'brokers' ? 'pill active' : 'pill'} onClick={() => setTab('brokers')}>Corretores</button>
         <button className={tab === 'tokens' ? 'pill active' : 'pill'} onClick={() => setTab('tokens')}>Tokens/Mercados</button>
@@ -345,6 +353,8 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
         </div>
       )}
 
+      {tab === 'registrations' && <AdminRegistrationsPanel />}
+      {tab === 'financial-permissions' && <AdminFinancialPermissionsPanel />}
       {tab === 'users' && <AdminUsersPanel onPermissionsUpdated={onPermissionsUpdated} mode="users" />}
       {tab === 'brokers' && <AdminUsersPanel onPermissionsUpdated={onPermissionsUpdated} mode="brokers" />}
       {tab === 'tokens' && <AdminTokensPanel currentUserRoles={currentUserRoles} />}

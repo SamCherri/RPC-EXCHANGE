@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
 import { validatePublicNameAllowed } from './content-moderation-service.js';
+import { EvidenceInput, replaceActiveRegistrationEvidence } from './registration-evidence-service.js';
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
@@ -33,31 +34,49 @@ async function validatePlayerProfileInput(input: { name: string; characterName: 
     throw new Error('Discord já cadastrado.');
   }
 
+  const existingGamePhone = await prisma.user.findUnique({ where: { gamePhone }, select: { id: true } });
+  if (existingGamePhone && existingGamePhone.id !== input.currentUserId) {
+    throw new Error('Telefone do jogo já cadastrado.');
+  }
+
   return { name, characterName, discord, gamePhone };
 }
 
-export async function registerUser(name: string, characterName: string, discord: string, gamePhone: string, password: string) {
+export async function registerUser(name: string, characterName: string, discord: string, gamePhone: string, password: string, evidence: EvidenceInput) {
   const profile = await validatePlayerProfileInput({ name, characterName, discord, gamePhone });
   const passwordHash = await bcrypt.hash(password, 10);
 
   const userRole = await prisma.role.findUnique({ where: { key: 'USER' } });
   if (!userRole) throw new Error('Cargo USER não encontrado no seed.');
 
-  return prisma.user.create({
-    data: {
-      ...profile,
-      passwordHash,
-      wallet: { create: {} },
-      roles: { create: [{ roleId: userRole.id }] },
-    },
-    include: { roles: { include: { role: true } } },
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        ...profile,
+        passwordHash,
+        approvalStatus: 'PENDING',
+        approvalReason: 'Aguardando análise do comprovante SunCity.',
+        lastSubmittedAt: new Date(),
+        wallet: { create: {} },
+        roles: { create: [{ roleId: userRole.id }] },
+      },
+      include: { roles: { include: { role: true } } },
+    });
+    await replaceActiveRegistrationEvidence(user.id, evidence, tx);
+    return user;
   });
 }
 
 export async function loginUser(discord: string, password: string) {
   const normalizedDiscord = normalizeDiscord(discord);
-  const user = await prisma.user.findUnique({
-    where: { discord: normalizedDiscord },
+  const normalizedEmail = discord.trim().toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { discord: normalizedDiscord },
+        { email: normalizedEmail },
+      ],
+    },
     include: { roles: { include: { role: true } }, wallet: true },
   });
 
@@ -78,8 +97,20 @@ export async function loginUser(discord: string, password: string) {
 }
 
 export async function updateUserProfile(userId: string, input: { name: string; characterName: string; discord: string; gamePhone: string }) {
+  const current = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const profile = await validatePlayerProfileInput({ ...input, currentUserId: userId });
-  return prisma.user.update({ where: { id: userId }, data: profile, select: { id: true, name: true, characterName: true, discord: true, gamePhone: true, email: true, isBlocked: true, createdAt: true, roles: { include: { role: true } } } });
+
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.update({ where: { id: userId }, data: { name: profile.name }, select: { id: true, name: true, characterName: true, discord: true, gamePhone: true, email: true, approvalStatus: true, approvalReason: true, isBlocked: true, createdAt: true, roles: { include: { role: true } } } });
+    const changes: Array<{ field: 'CHARACTER_NAME' | 'DISCORD' | 'GAME_PHONE'; currentValue: string; requestedValue: string }> = [];
+    if ((current.characterName ?? '') !== profile.characterName) changes.push({ field: 'CHARACTER_NAME', currentValue: current.characterName ?? '', requestedValue: profile.characterName });
+    if (current.discord !== profile.discord) changes.push({ field: 'DISCORD', currentValue: current.discord, requestedValue: profile.discord });
+    if (current.gamePhone !== profile.gamePhone) changes.push({ field: 'GAME_PHONE', currentValue: current.gamePhone, requestedValue: profile.gamePhone });
+    for (const change of changes) {
+      await tx.profileChangeRequest.create({ data: { userId, ...change, status: 'PENDING' } });
+    }
+    return { user, pendingSensitiveChanges: changes.length };
+  });
 }
 
 export async function changeUserPassword(userId: string, currentPassword: string, newPassword: string) {

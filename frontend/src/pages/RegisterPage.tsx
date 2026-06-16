@@ -12,16 +12,30 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
   const [discord, setDiscord] = useState('');
   const [gamePhone, setGamePhone] = useState('');
   const [password, setPassword] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  async function fileToBase64(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Não foi possível ler o comprovante.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!evidenceFile) {
+      setMessage('Envie o screenshot da conta SunCity mostrando personagem e telefone.');
+      return;
+    }
     setIsLoading(true);
     try {
       await api('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, characterName, discord, gamePhone, password }),
+        body: JSON.stringify({ name, characterName, discord, gamePhone, password, evidence: { fileName: evidenceFile.name, mimeType: evidenceFile.type, dataBase64: await fileToBase64(evidenceFile) } }),
       });
       setMessage('✓ Conta criada com sucesso! Redirecionando para login...');
       setTimeout(() => {
@@ -30,6 +44,7 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
         setDiscord('');
         setGamePhone('');
         setPassword('');
+        setEvidenceFile(null);
         if (onSwitchLogin) onSwitchLogin();
       }, 1500);
     } catch (error) {
@@ -95,6 +110,18 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
             minLength={3} 
           />
           <small className="label-hint">Número do personagem dentro do RP.</small>
+        </label>
+
+        <label>
+          <span className="label-text">Comprovante SunCity</span>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)}
+            disabled={isLoading}
+            required
+          />
+          <small className="label-hint">Screenshot mostrando nome do personagem e telefone no SunCity.</small>
         </label>
 
         <label>

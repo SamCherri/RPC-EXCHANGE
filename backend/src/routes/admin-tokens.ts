@@ -132,6 +132,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
     try {
       const body = z.object({
         founderEmail: z.string().email().optional(),
+        founderRef: z.string().min(1).optional(),
         founderUserId: z.string().min(1).optional(),
         name: z.string().min(3),
         ticker: z.string().min(2).max(10),
@@ -155,9 +156,12 @@ export async function adminTokensRoutes(app: FastifyInstance) {
       }
 
       const normalizedFounderEmail = body.founderEmail?.trim().toLowerCase();
-      const founder = normalizedFounderEmail
-        ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
-        : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
+      const founderRef = body.founderRef?.trim();
+      const founder = founderRef
+        ? await prisma.user.findFirst({ where: { OR: [{ id: founderRef }, { discord: founderRef.replace(/^@+/, '').toLowerCase() }, { gamePhone: founderRef }] } })
+        : normalizedFounderEmail
+          ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
+          : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
       const founderUserId = founder?.id ?? body.founderUserId;
 
       const [tickerExists, ownerRole] = await Promise.all([
@@ -166,7 +170,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
       ]);
 
       if (tickerExists) return reply.code(409).send({ message: 'Ticker já está em uso.' });
-      if (!founder || !founderUserId) return reply.code(404).send({ message: 'Usuário dono do projeto não encontrado pelo e-mail informado.' });
+      if (!founder || !founderUserId) return reply.code(404).send({ message: 'Usuário dono do projeto não encontrado.' });
       if (!ownerRole) return reply.code(400).send({ message: 'Role BUSINESS_OWNER não encontrada.' });
 
       const initialPrice = new Decimal(body.initialPrice);
@@ -271,12 +275,15 @@ export async function adminTokensRoutes(app: FastifyInstance) {
 
     try {
       const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-      const body = z.object({ founderEmail: z.string().email().optional(), founderUserId: z.string().min(1).optional(), reason: z.string().min(2) }).parse(request.body);
+      const body = z.object({ founderEmail: z.string().email().optional(), founderRef: z.string().min(1).optional(), founderUserId: z.string().min(1).optional(), reason: z.string().min(2) }).parse(request.body);
 
       const normalizedFounderEmail = body.founderEmail?.trim().toLowerCase();
-      const nextOwner = normalizedFounderEmail
-        ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
-        : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
+      const founderRef = body.founderRef?.trim();
+      const nextOwner = founderRef
+        ? await prisma.user.findFirst({ where: { OR: [{ id: founderRef }, { discord: founderRef.replace(/^@+/, '').toLowerCase() }, { gamePhone: founderRef }] } })
+        : normalizedFounderEmail
+          ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
+          : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
 
       const [company, ownerRole] = await Promise.all([
         prisma.company.findUnique({ where: { id } }),

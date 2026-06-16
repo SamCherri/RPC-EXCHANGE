@@ -11,7 +11,7 @@ const PASSWORD = 'Admin@123';
 
 async function resetDb() { await prisma.$transaction([prisma.rpcLimitOrder.deleteMany(), prisma.rpcExchangeTrade.deleteMany(), prisma.rpcMarketState.deleteMany(), prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.company.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(), prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany()]); }
 async function mkRole(key: string) { return prisma.role.create({ data: { key, name: key } }); }
-async function mkUser(email: string) { return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash(PASSWORD, 10), wallet: { create: {} } } }); }
+async function mkUser(email: string) { return prisma.user.create({ data: { email, discord: email.replace(/[^a-z0-9]/gi, '_').toLowerCase(), gamePhone: `TEST-${email.replace(/[^a-z0-9]/gi, '_').slice(0, 24)}`, name: email, passwordHash: await bcrypt.hash(PASSWORD, 10), wallet: { create: {} } } }); }
 async function auth(userId: string, roles: string[]) { return app.jwt.sign({ sub: userId, roles }); }
 
 test.before(async () => { await app.ready(); await resetDb(); });

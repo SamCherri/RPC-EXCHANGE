@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { ensurePermission, GRANULAR_PERMISSIONS } from '../services/permission-service.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
@@ -64,10 +65,12 @@ export async function adminUsersRoutes(app: FastifyInstance) {
     });
 
     return {
-      users: users.map((user: { id: string; name: string | null; email: string | null; characterName: string | null; bankAccountNumber: string | null; roles: Array<{ role: { key: string } }>; isBlocked: boolean; wallet: { availableBalance: unknown; lockedBalance: unknown; pendingWithdrawalBalance: unknown } | null; createdAt: Date }) => ({
+      users: users.map((user: { id: string; name: string | null; email: string | null; discord: string; gamePhone: string; characterName: string | null; bankAccountNumber: string | null; roles: Array<{ role: { key: string } }>; isBlocked: boolean; wallet: { availableBalance: unknown; lockedBalance: unknown; pendingWithdrawalBalance: unknown } | null; createdAt: Date }) => ({
         id: user.id,
         name: user.name,
         email: user.email,
+        discord: user.discord,
+        gamePhone: user.gamePhone,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
         roles: user.roles.map((role: { role: { key: string } }) => role.role.key),
@@ -130,6 +133,8 @@ export async function adminUsersRoutes(app: FastifyInstance) {
         id: user.id,
         name: user.name,
         email: user.email,
+        discord: user.discord,
+        gamePhone: user.gamePhone,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
         isBlocked: user.isBlocked,
@@ -279,4 +284,129 @@ export async function adminUsersRoutes(app: FastifyInstance) {
       return reply.code(400).send({ message: (error as Error).message });
     }
   });
+
+  app.get('/registrations/pending', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar cadastros.' }); }
+    const users = await prisma.user.findMany({
+      where: { approvalStatus: { in: ['PENDING', 'CORRECTION_REQUIRED'] } },
+      select: { id: true, name: true, characterName: true, discord: true, gamePhone: true, approvalStatus: true, approvalReason: true, lastSubmittedAt: true, registrationEvidences: { where: { status: 'ACTIVE' }, select: { id: true, mimeType: true, sizeBytes: true, sha256: true, createdAt: true }, take: 1 } },
+      orderBy: { lastSubmittedAt: 'asc' },
+      take: 200,
+    });
+    return { users };
+  });
+
+  app.post('/registrations/:id/approve', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar cadastros.' }); }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    if (id === authRequest.user.sub) return reply.code(400).send({ message: 'Administrador não pode aprovar o próprio cadastro.' });
+    const user = await prisma.user.findUnique({ where: { id }, select: { approvalStatus: true } });
+    if (!user) return reply.code(404).send({ message: 'Cadastro não encontrado.' });
+    if (!['PENDING', 'CORRECTION_REQUIRED', 'REJECTED'].includes(user.approvalStatus)) return reply.code(400).send({ message: 'Cadastro já decidido.' });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id }, data: { approvalStatus: 'APPROVED', approvalReason: null, approvedAt: new Date(), approvedById: authRequest.user.sub, reviewedAt: new Date() } });
+      await tx.adminLog.create({ data: { action: 'APPROVE_REGISTRATION', entity: 'User', userId: authRequest.user.sub, reason: `Aprovou cadastro ${id}` } });
+    });
+    return { message: 'Cadastro aprovado.' };
+  });
+
+  app.post('/registrations/:id/request-correction', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar cadastros.' }); }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z.object({ reason: z.string().min(3) }).parse(request.body);
+    if (id === authRequest.user.sub) return reply.code(400).send({ message: 'Administrador não pode revisar o próprio cadastro.' });
+    const updated = await prisma.user.updateMany({ where: { id, approvalStatus: { in: ['PENDING', 'CORRECTION_REQUIRED'] } }, data: { approvalStatus: 'CORRECTION_REQUIRED', approvalReason: body.reason, reviewedAt: new Date() } });
+    if (updated.count !== 1) return reply.code(400).send({ message: 'Cadastro não encontrado ou já decidido.' });
+    await app.logAdmin({ action: 'REQUEST_REGISTRATION_CORRECTION', entity: 'User', userId: authRequest.user.sub, reason: body.reason, current: id });
+    return { message: 'Correção solicitada.' };
+  });
+
+  app.post('/registrations/:id/reject', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar cadastros.' }); }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z.object({ reason: z.string().min(3) }).parse(request.body);
+    if (id === authRequest.user.sub) return reply.code(400).send({ message: 'Administrador não pode rejeitar o próprio cadastro.' });
+    const updated = await prisma.user.updateMany({ where: { id, approvalStatus: { in: ['PENDING', 'CORRECTION_REQUIRED'] } }, data: { approvalStatus: 'REJECTED', approvalReason: body.reason, rejectedAt: new Date(), reviewedAt: new Date() } });
+    if (updated.count !== 1) return reply.code(400).send({ message: 'Cadastro não encontrado ou já decidido.' });
+    await app.logAdmin({ action: 'REJECT_REGISTRATION', entity: 'User', userId: authRequest.user.sub, reason: body.reason, current: id });
+    return { message: 'Cadastro rejeitado.' };
+  });
+
+  app.post('/registrations/:id/suspend', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para suspender cadastros.' }); }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z.object({ reason: z.string().min(3) }).parse(request.body);
+    if (id === authRequest.user.sub) return reply.code(400).send({ message: 'Administrador não pode suspender o próprio cadastro.' });
+    await prisma.user.update({ where: { id }, data: { approvalStatus: 'SUSPENDED', approvalReason: body.reason, reviewedAt: new Date() } });
+    await app.logAdmin({ action: 'SUSPEND_REGISTRATION', entity: 'User', userId: authRequest.user.sub, reason: body.reason, current: id });
+    return { message: 'Cadastro suspenso.' };
+  });
+
+  app.get('/profile-change-requests', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar perfil.' }); }
+    const requests = await prisma.profileChangeRequest.findMany({ where: { status: 'PENDING' }, include: { user: { select: { id: true, name: true, discord: true, gamePhone: true, characterName: true } } }, orderBy: { createdAt: 'asc' }, take: 200 });
+    return { requests };
+  });
+
+  app.post('/profile-change-requests/:id/approve', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar perfil.' }); }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const change = await prisma.profileChangeRequest.findUnique({ where: { id } });
+    if (!change || change.status !== 'PENDING') return reply.code(400).send({ message: 'Solicitação não encontrada ou já decidida.' });
+    if (change.userId === authRequest.user.sub) return reply.code(400).send({ message: 'Administrador não pode aprovar a própria solicitação.' });
+    await prisma.$transaction(async (tx) => {
+      const data = change.field === 'CHARACTER_NAME' ? { characterName: change.requestedValue } : change.field === 'DISCORD' ? { discord: change.requestedValue } : { gamePhone: change.requestedValue };
+      await tx.user.update({ where: { id: change.userId }, data });
+      await tx.profileChangeRequest.update({ where: { id }, data: { status: 'APPROVED', reviewedById: authRequest.user.sub, reviewedAt: new Date() } });
+      await tx.adminLog.create({ data: { action: 'APPROVE_PROFILE_CHANGE', entity: 'ProfileChangeRequest', userId: authRequest.user.sub, previous: change.currentValue, current: change.requestedValue } });
+    });
+    return { message: 'Alteração aprovada.' };
+  });
+
+  app.post('/profile-change-requests/:id/reject', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    try { await ensurePermission(authRequest.user.sub, 'registration.review'); } catch { return reply.code(403).send({ message: 'Sem permissão para revisar perfil.' }); }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z.object({ reason: z.string().min(3) }).parse(request.body);
+    const updated = await prisma.profileChangeRequest.updateMany({ where: { id, status: 'PENDING', userId: { not: authRequest.user.sub } }, data: { status: 'REJECTED', reason: body.reason, reviewedById: authRequest.user.sub, reviewedAt: new Date() } });
+    if (updated.count !== 1) return reply.code(400).send({ message: 'Solicitação não encontrada, própria ou já decidida.' });
+    await app.logAdmin({ action: 'REJECT_PROFILE_CHANGE', entity: 'ProfileChangeRequest', userId: authRequest.user.sub, reason: body.reason, current: id });
+    return { message: 'Alteração rejeitada.' };
+  });
+
+  app.get('/financial-permissions', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    if (!(authRequest.user.roles ?? []).includes('SUPER_ADMIN')) return reply.code(403).send({ message: 'Somente SUPER_ADMIN pode listar permissões granulares.' });
+    const users = await prisma.user.findMany({ where: { grantedPermissions: { some: { permission: { key: { in: [...GRANULAR_PERMISSIONS] } } } } }, select: { id: true, name: true, discord: true, grantedPermissions: { select: { permission: { select: { key: true } }, reason: true, createdAt: true } } } });
+    return { permissions: GRANULAR_PERMISSIONS, users };
+  });
+
+  app.post('/financial-permissions/grant', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    if (!(authRequest.user.roles ?? []).includes('SUPER_ADMIN')) return reply.code(403).send({ message: 'Somente SUPER_ADMIN pode conceder permissões granulares.' });
+    const body = z.object({ userId: z.string().min(1), permissionKey: z.enum(GRANULAR_PERMISSIONS), reason: z.string().min(3) }).parse(request.body);
+    if (body.userId === authRequest.user.sub) return reply.code(400).send({ message: 'SUPER_ADMIN não deve conceder permissão granular a si mesmo por este fluxo.' });
+    const permission = await prisma.permission.upsert({ where: { key: body.permissionKey }, update: {}, create: { key: body.permissionKey } });
+    await prisma.userPermission.upsert({ where: { userId_permissionId: { userId: body.userId, permissionId: permission.id } }, update: { reason: body.reason, grantedById: authRequest.user.sub }, create: { userId: body.userId, permissionId: permission.id, reason: body.reason, grantedById: authRequest.user.sub } });
+    await app.logAdmin({ action: 'GRANT_FINANCIAL_PERMISSION', entity: 'UserPermission', userId: authRequest.user.sub, reason: body.reason, current: JSON.stringify({ userId: body.userId, permissionKey: body.permissionKey }) });
+    return { message: 'Permissão concedida.' };
+  });
+
+  app.post('/financial-permissions/revoke', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    if (!(authRequest.user.roles ?? []).includes('SUPER_ADMIN')) return reply.code(403).send({ message: 'Somente SUPER_ADMIN pode retirar permissões granulares.' });
+    const body = z.object({ userId: z.string().min(1), permissionKey: z.enum(GRANULAR_PERMISSIONS), reason: z.string().min(3) }).parse(request.body);
+    const permission = await prisma.permission.findUnique({ where: { key: body.permissionKey } });
+    if (permission) await prisma.userPermission.deleteMany({ where: { userId: body.userId, permissionId: permission.id } });
+    await app.logAdmin({ action: 'REVOKE_FINANCIAL_PERMISSION', entity: 'UserPermission', userId: authRequest.user.sub, reason: body.reason, previous: JSON.stringify({ userId: body.userId, permissionKey: body.permissionKey }) });
+    return { message: 'Permissão retirada.' };
+  });
+
 }

@@ -7,6 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
+enum UserApprovalStatus {
+  PENDING
+  CORRECTION_REQUIRED
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum RegistrationEvidenceStatus {
+  ACTIVE
+  REPLACED
+  REJECTED
+}
+
+enum RegistrationEvidenceType {
+  SUNCITY_ACCOUNT_SCREENSHOT
+}
+
+enum ProfileChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProfileChangeField {
+  CHARACTER_NAME
+  DISCORD
+  GAME_PHONE
+}
+
 enum CompanyStatus {
   PENDING
   APPROVED
@@ -107,12 +138,26 @@ model User {
   email        String?          @unique
   discord      String           @unique
   characterName String?
-  gamePhone    String
+  gamePhone    String           @unique
   bankAccountNumber String?
   passwordHash String
   isBlocked    Boolean          @default(false)
   failedLoginAttempts Int       @default(0)
   loginLockedUntil DateTime?
+  approvalStatus UserApprovalStatus @default(PENDING)
+  approvalReason String?
+  approvedAt DateTime?
+  approvedById String?
+  rejectedAt DateTime?
+  reviewedAt DateTime?
+  lastSubmittedAt DateTime?
+  registrationEvidences RegistrationEvidence[]
+  profileChangeRequests ProfileChangeRequest[] @relation("profile_change_user")
+  reviewedProfileChangeRequests ProfileChangeRequest[] @relation("profile_change_reviewer")
+  grantedPermissions UserPermission[] @relation("user_permission_user")
+  permissionGrants UserPermission[] @relation("user_permission_granted_by")
+  approvedUsers User[] @relation("user_approved_by")
+  approvedBy User? @relation("user_approved_by", fields: [approvedById], references: [id])
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   wallet       Wallet?
@@ -150,6 +195,7 @@ model Permission {
   id    String           @id @default(cuid())
   key   String           @unique
   roles RolePermission[]
+  userPermissions UserPermission[]
 }
 
 model UserRole {
@@ -168,6 +214,54 @@ model RolePermission {
   permission   Permission @relation(fields: [permissionId], references: [id])
 
   @@id([roleId, permissionId])
+}
+
+model UserPermission {
+  userId String
+  permissionId String
+  grantedById String?
+  reason String?
+  createdAt DateTime @default(now())
+  user User @relation("user_permission_user", fields: [userId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+  grantedBy User? @relation("user_permission_granted_by", fields: [grantedById], references: [id])
+
+  @@id([userId, permissionId])
+}
+
+model RegistrationEvidence {
+  id String @id @default(cuid())
+  userId String
+  type RegistrationEvidenceType @default(SUNCITY_ACCOUNT_SCREENSHOT)
+  storageKey String @unique
+  originalFileName String?
+  mimeType String
+  sizeBytes Int
+  sha256 String
+  content Bytes
+  status RegistrationEvidenceStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  replacedAt DateTime?
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+}
+
+model ProfileChangeRequest {
+  id String @id @default(cuid())
+  userId String
+  field ProfileChangeField
+  currentValue String
+  requestedValue String
+  status ProfileChangeStatus @default(PENDING)
+  reason String?
+  reviewedById String?
+  reviewedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation("profile_change_user", fields: [userId], references: [id])
+  reviewedBy User? @relation("profile_change_reviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId, status])
 }
 
 model Wallet {

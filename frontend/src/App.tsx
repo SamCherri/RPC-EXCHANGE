@@ -13,6 +13,7 @@ import { TestModePage } from './pages/TestModePage';
 import { TestModeRankingPage } from './pages/TestModeRankingPage';
 import { TestModeReportPage } from './pages/TestModeReportPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { RegistrationStatusPage } from './pages/RegistrationStatusPage';
 import { api, getCurrentUser, CurrentUserResponse } from './services/api';
 import { BrandLogo } from './components/BrandLogo';
 import { SideDrawer, SideDrawerItem } from './components/SideDrawer';
@@ -245,6 +246,17 @@ export function App() {
             <RegisterPage onSwitchLogin={() => setPublicTab('login')} />
           )}
         </section>
+      </main>
+    );
+  }
+
+
+  const isPendingRegularUser = Boolean(token && currentUser && currentUser.approvalStatus !== 'APPROVED' && !roles.canSeeAdmin);
+
+  if (isPendingRegularUser) {
+    return (
+      <main className="container mobile-app-shell">
+        <RegistrationStatusPage onLogout={handleLogout} />
       </main>
     );
   }

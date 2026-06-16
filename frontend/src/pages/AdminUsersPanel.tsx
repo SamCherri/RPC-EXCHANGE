@@ -7,7 +7,9 @@ import { getOfficialRoleBadge } from '../utils/roleBadges';
 type UserRow = {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
+  discord: string;
+  gamePhone: string;
   characterName?: string | null;
   bankAccountNumber?: string | null;
   roles: string[];
@@ -167,7 +169,7 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
           loadUsers();
         }}
       >
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={mode === 'brokers' ? 'Buscar por conta RP/personagem/nome/e-mail' : 'Buscar por conta RP/personagem/nome/e-mail'} />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={mode === 'brokers' ? 'Buscar por Discord/telefone/personagem/nome' : 'Buscar por Discord/telefone/personagem/nome'} />
         <button className="button-primary" type="submit">{mode === 'brokers' ? 'Buscar corretores' : 'Buscar usuários'}</button>
       </form>
 
@@ -182,8 +184,8 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
             <strong>Usuário: {user.name}</strong>
             {getOfficialRoleBadge(user.roles) && <span className="official-badge">{getOfficialRoleBadge(user.roles)}</span>}
             <p>Personagem: {user.characterName ?? 'Sem personagem'}</p>
-            <p>Conta RP: {user.bankAccountNumber ?? 'Sem conta RP'}</p>
-            <p className="info-text">Email técnico: {user.email}</p>
+            <p>Discord: {user.discord}</p>
+            <p>Telefone do jogo: {user.gamePhone}</p>
             <p>Status: {user.isBlocked ? 'Bloqueado' : 'Ativo'}</p>
             <p>Cargos: {user.roles.map((role) => translateRole(role)).join(', ')}</p>
             <p>Disponível: {user.wallet.availableBalance}</p>
@@ -226,8 +228,8 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
             <strong>Usuário: {broker.name}</strong>
             {getOfficialRoleBadge(broker.roles) && <span className="official-badge">{getOfficialRoleBadge(broker.roles)}</span>}
             <p>Personagem: {broker.characterName ?? 'Sem personagem'}</p>
-            <p>Conta RP: {broker.bankAccountNumber ?? 'Sem conta RP'}</p>
-            <p className="info-text">Email técnico: {broker.email}</p>
+            <p>Discord: {broker.discord}</p>
+            <p>Telefone do jogo: {broker.gamePhone}</p>
             <p>Saldo RPC: {broker.wallet.availableBalance}</p>
             <button className="button-danger" onClick={() => removeBrokerRole(broker)}>
               Remover função de corretor

@@ -20,6 +20,7 @@ import { systemModeRoutes } from './routes/system-mode.js';
 import { testModeRoutes } from './routes/test-mode.js';
 import { projectCapitalFlowRoutes } from './routes/project-capital-flow.js';
 import { globalSystemModeGuard } from './plugins/system-mode-guard.js';
+import approvalGuard from './plugins/approval-guard.js';
 
 export function buildApp() {
   const app = Fastify({ logger: true });
@@ -44,6 +45,7 @@ export function buildApp() {
     enableDraftSpec: true,
   });
   app.register(authPlugin);
+  app.register(approvalGuard);
   app.addHook('preHandler', globalSystemModeGuard);
 
   app.decorate('logAdmin', async (input: { action: string; entity: string; userId?: string; reason?: string; previous?: string; current?: string }) => {
@@ -82,6 +84,7 @@ export function buildApp() {
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    requireApprovedUser: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     logAdmin: (request: { action: string; entity: string; userId?: string; reason?: string; previous?: string; current?: string }) => Promise<void>;
   }
 }
