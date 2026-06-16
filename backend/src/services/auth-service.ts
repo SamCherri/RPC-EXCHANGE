@@ -56,8 +56,14 @@ export async function registerUser(name: string, characterName: string, discord:
 
 export async function loginUser(discord: string, password: string) {
   const normalizedDiscord = normalizeDiscord(discord);
-  const user = await prisma.user.findUnique({
-    where: { discord: normalizedDiscord },
+  const normalizedEmail = discord.trim().toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { discord: normalizedDiscord },
+        { email: normalizedEmail },
+      ],
+    },
     include: { roles: { include: { role: true } }, wallet: true },
   });
 

@@ -178,20 +178,39 @@ async function main() {
   const adminEmail = 'admin@rpc.exchange.local';
   const passwordHash = await bcrypt.hash('Admin1234!', 10);
 
+  const adminByDiscord = await prisma.user.findUnique({ where: { discord: 'admin' } });
+  const adminByCurrentEmail = await prisma.user.findUnique({ where: { email: adminEmail } });
   const adminLegacy = await prisma.user.findUnique({ where: { email: adminEmailLegacy } });
+  const existingAdmin = adminByDiscord ?? adminByCurrentEmail ?? adminLegacy;
 
-  const admin = await prisma.user.upsert({
-    where: { discord: 'admin' },
+  const admin = existingAdmin
+    ? await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: {
+          name: existingAdmin.name || 'Administrador',
+          characterName: existingAdmin.characterName ?? 'Admin_RPC',
+          discord: 'admin',
+          gamePhone: existingAdmin.gamePhone || existingAdmin.bankAccountNumber || '000-000',
+          email: adminEmail,
+          passwordHash: existingAdmin.passwordHash || passwordHash,
+        },
+      })
+    : await prisma.user.create({
+        data: {
+          name: 'Administrador',
+          characterName: 'Admin_RPC',
+          discord: 'admin',
+          gamePhone: '000-000',
+          email: adminEmail,
+          passwordHash,
+          wallet: { create: {} },
+        },
+      });
+
+  await prisma.wallet.upsert({
+    where: { userId: admin.id },
     update: {},
-    create: {
-      name: 'Administrador',
-      characterName: 'Admin_RPC',
-      discord: 'admin',
-      gamePhone: '000-000',
-      email: adminEmail,
-      passwordHash,
-      wallet: { create: {} },
-    },
+    create: { userId: admin.id },
   });
 
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: admin.id, roleId: superAdminRole.id } }, update: {}, create: { userId: admin.id, roleId: superAdminRole.id } });
