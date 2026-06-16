@@ -11,7 +11,7 @@ async function seedDemoData(params: {
 
   const demoEmailLegacy = 'jogador@bolsavirtual.local';
   const demoEmail = 'jogador@rpc.exchange.local';
-  const demoRpc = await prisma.user.findUnique({ where: { email: demoEmail } });
+  const demoRpc = await prisma.user.findUnique({ where: { discord: 'jogador_demo' } });
   const demoLegacy = await prisma.user.findUnique({ where: { email: demoEmailLegacy } });
 
   // usuário demo base (RPC Exchange), reaproveitando conta legada quando existir
@@ -22,14 +22,20 @@ async function seedDemoData(params: {
           where: { id: demoLegacy.id },
           data: {
             email: demoEmail,
+            discord: 'jogador_demo',
+            gamePhone: demoLegacy.bankAccountNumber ?? '000-001',
+            characterName: demoLegacy.characterName ?? 'Jogador_Demo',
             name: demoLegacy.name || 'Jogador Demo',
           },
         })
       : await prisma.user.upsert({
-          where: { email: demoEmail },
+          where: { discord: 'jogador_demo' },
           update: {},
           create: {
             name: 'Jogador Demo',
+            characterName: 'Jogador_Demo',
+            discord: 'jogador_demo',
+            gamePhone: '000-001',
             email: demoEmail,
             passwordHash: await bcrypt.hash('Jogador123!', 10),
             wallet: { create: {} },
@@ -103,10 +109,13 @@ async function seedDemoData(params: {
   });
 
   const brokerDemo = await prisma.user.upsert({
-    where: { email: 'corretor@rpc.exchange.local' },
+    where: { discord: 'corretor_demo' },
     update: {},
     create: {
       name: 'Corretor Demo',
+      characterName: 'Corretor_Demo',
+      discord: 'corretor_demo',
+      gamePhone: '000-002',
       email: 'corretor@rpc.exchange.local',
       passwordHash: await bcrypt.hash('Corretor123!', 10),
       wallet: { create: {} },
@@ -172,10 +181,13 @@ async function main() {
   const adminLegacy = await prisma.user.findUnique({ where: { email: adminEmailLegacy } });
 
   const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
+    where: { discord: 'admin' },
     update: {},
     create: {
-      name: adminLegacy?.name ?? 'Super Admin Inicial',
+      name: 'Administrador',
+      characterName: 'Admin_RPC',
+      discord: 'admin',
+      gamePhone: '000-000',
       email: adminEmail,
       passwordHash,
       wallet: { create: {} },

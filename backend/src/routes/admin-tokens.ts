@@ -107,7 +107,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
     });
 
     return {
-      tokens: companies.map((company: { id: string; name: string; ticker: string; sector: string; status: string; founder: { id: string; name: string | null; email: string } | null; currentPrice: unknown; totalShares: number; availableOfferShares: number; createdAt: Date; approvedAt: Date | null; suspendedAt: Date | null }) => ({
+      tokens: companies.map((company: { id: string; name: string; ticker: string; sector: string; status: string; founder: { id: string; name: string | null; email: string | null } | null; currentPrice: unknown; totalShares: number; availableOfferShares: number; createdAt: Date; approvedAt: Date | null; suspendedAt: Date | null }) => ({
         id: company.id,
         name: company.name,
         ticker: company.ticker,

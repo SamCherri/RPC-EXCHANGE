@@ -12,12 +12,13 @@ import { RpcMarketPage } from './pages/RpcMarketPage';
 import { TestModePage } from './pages/TestModePage';
 import { TestModeRankingPage } from './pages/TestModeRankingPage';
 import { TestModeReportPage } from './pages/TestModeReportPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { api, getCurrentUser, CurrentUserResponse } from './services/api';
 import { BrandLogo } from './components/BrandLogo';
 import { SideDrawer, SideDrawerItem } from './components/SideDrawer';
 
 type PublicTab = 'login' | 'register';
-type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'withdrawals' | 'company-request' | 'admin' | 'broker' | 'my-projects' | 'test-mode' | 'test-ranking' | 'test-report';
+type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'withdrawals' | 'company-request' | 'profile' | 'admin' | 'broker' | 'my-projects' | 'test-mode' | 'test-ranking' | 'test-report';
 
 type ViewerRoles = {
   canSeeAdmin: boolean;
@@ -26,11 +27,6 @@ type ViewerRoles = {
 };
 
 type CurrentUser = CurrentUserResponse['user'];
-
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN']);
 const BROKER_ROLES = new Set(['VIRTUAL_BROKER']);
@@ -69,11 +65,6 @@ export function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [publicTab, setPublicTab] = useState<PublicTab>('login');
   const [screen, setScreen] = useState<PrivateScreen>('home');
-  const [installPromptEvent, setInstallPromptEvent] = useState<InstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(
-    () => window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
-  );
-  const [installHint, setInstallHint] = useState('');
   const [hasOwnedProjects, setHasOwnedProjects] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isGlobalDrawerOpen, setIsGlobalDrawerOpen] = useState(false);
@@ -178,58 +169,13 @@ export function App() {
     }, 15000);
     return () => window.clearInterval(interval);
   }, [token]);
-  useEffect(() => {
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPromptEvent(event as InstallPromptEvent);
-      setInstallHint('');
-    };
-
-    const onInstalled = () => {
-      setIsInstalled(true);
-      setInstallPromptEvent(null);
-      setInstallHint('App instalado com sucesso no seu dispositivo.');
-    };
-
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
-
   const canGoBack = useMemo(() => screen !== 'home', [screen]);
-
-  async function handleInstallClick() {
-    if (isInstalled) {
-      setInstallHint('App instalado. Abra pela sua tela inicial.');
-      return;
-    }
-
-    if (installPromptEvent) {
-      await installPromptEvent.prompt();
-      const choice = await installPromptEvent.userChoice;
-      if (choice.outcome === 'accepted') {
-        setInstallHint('Instalação iniciada.');
-      } else {
-        setInstallHint('Instalação cancelada. Você pode tentar novamente depois.');
-      }
-      setInstallPromptEvent(null);
-      return;
-    }
-
-    setInstallHint('No navegador, toque nos três pontos e escolha Adicionar à tela inicial.');
-  }
 
   function handleLogout() {
     setToken(null);
     setScreen('home');
     setPublicTab('login');
   }
-
-  const showInstallCard = !isInstalled;
 
   const globalDrawerItems = useMemo<SideDrawerItem[]>(() => {
     const items: SideDrawerItem[] = [
@@ -247,6 +193,7 @@ export function App() {
             { key: 'rpc-market', label: 'RPC/R$', icon: '💴', active: screen === 'rpc-market', onClick: () => setScreen('rpc-market'), section: 'main' },
             { key: 'withdrawals', label: 'Saque', icon: '🏧', active: screen === 'withdrawals', onClick: () => setScreen('withdrawals'), section: 'secondary' },
             { key: 'company-request', label: 'Criar token', icon: '🚀', active: screen === 'company-request', onClick: () => setScreen('company-request'), section: 'secondary' },
+            { key: 'profile', label: 'Perfil', icon: '👤', active: screen === 'profile', onClick: () => setScreen('profile'), section: 'secondary' },
           ] as SideDrawerItem[])),
     ];
 
@@ -270,20 +217,11 @@ export function App() {
             <p className="info-text">Sem cripto real, sem blockchain, sem Pix, sem cartão e sem gateway de pagamento.</p>
           </header>
 
-          <article className="card install-card nested-card">
-            <h3>📲 Instalar aplicativo</h3>
-            <p className="info-text">Use a RPC Exchange como app no celular.</p>
-            <button className="button-primary" onClick={handleInstallClick} type="button">
-              Instalar aplicativo
-            </button>
-            {installHint && <p className="info-text">{installHint}</p>}
-          </article>
-
           <div className="benefits-grid nested-card">
             <span>🪙 Crie e negocie tokens</span>
             <span>📈 Gráficos e ordens</span>
             <span>💼 Carteira digital</span>
-            <span>📲 Instale como app</span>
+            <span>👤 Perfil editável</span>
           </div>
 
           <nav className="pill-nav nested-card" aria-label="Alternar entre login e cadastro">
@@ -345,17 +283,6 @@ export function App() {
       {shouldShowTestModeEntry && screen === 'test-report' && <TestModeReportPage />}
       {!isTestModeRestrictedUser && screen === 'home' && (
         <section className="card">
-          {showInstallCard && (
-            <article className="summary-item install-card">
-              <h3>📲 Instalar aplicativo</h3>
-              <p className="info-text">Use a RPC Exchange como app no celular.</p>
-              <button className="button-primary" onClick={handleInstallClick} type="button">
-                Instalar aplicativo
-              </button>
-              {installHint && <p className="info-text">{installHint}</p>}
-            </article>
-          )}
-
           <section className="mobile-home-summary mobile-only">
             <div className="mobile-hero-card">
               <span className="mobile-hero-kicker">Painel principal</span>
@@ -392,7 +319,7 @@ export function App() {
 
             <div className="mobile-menu-hint">
               <span>☰</span>
-              <p>Use o menu lateral para acessar Saque, Criar token, Projetos, Corretor e Sair.</p>
+              <p>Use o menu lateral para acessar Saque, Criar token, Perfil, Projetos, Corretor e Sair.</p>
             </div>
             <div className="summary-grid">
               <article className="summary-item">
@@ -414,6 +341,7 @@ export function App() {
             <button className="home-tile" onClick={() => setScreen('wallet')}><span>💼</span><strong>Carteira</strong><small>Acompanhe seu saldo e seus ativos.</small></button>
             <button className="home-tile" onClick={() => setScreen('withdrawals')}><span>🏧</span><strong>Saque</strong><small>Solicite a retirada de RPC para receber dentro do RP.</small></button>
             <button className="home-tile" onClick={() => setScreen('company-request')}><span>🚀</span><strong>Criar token</strong><small>Crie seu projeto e solicite listagem no mercado.</small></button>
+            <button className="home-tile" onClick={() => setScreen('profile')}><span>👤</span><strong>Perfil</strong><small>Editar perfil e alterar senha.</small></button>
             {canSeeMyProjects && <button className="home-tile" onClick={() => setScreen('my-projects')}><span>📊</span><strong>Meus Projetos</strong><small>Gerencie impulsões da sua moeda.</small></button>}
             {roles.canSeeAdmin && <button className="home-tile" onClick={() => setScreen('admin')}><span>🛠️</span><strong>Admin</strong><small>Painel administrativo</small></button>}
             {roles.canSeeBroker && <button className="home-tile" onClick={() => setScreen('broker')}><span>🤝</span><strong>Corretor</strong><small>Painel corretor</small></button>}
@@ -438,6 +366,7 @@ export function App() {
       {!isTestModeRestrictedUser && screen === 'rpc-market' && <RpcMarketPage initialTradeFlow={rpcMarketAction} onTradeFlowHandled={() => setRpcMarketAction(null)} />}
       {!isTestModeRestrictedUser && screen === 'withdrawals' && <WithdrawalsPage />}
       {!isTestModeRestrictedUser && screen === 'company-request' && <CompanyRequestPage />}
+      {!isTestModeRestrictedUser && screen === 'profile' && <ProfilePage onProfileUpdated={setCurrentUser} />}
       {!isTestModeRestrictedUser && screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}
       {screen === 'admin' && roles.canSeeAdmin && <AdminDashboard currentUserRoles={currentUser?.roles ?? []} onPermissionsUpdated={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />}
       {!isTestModeRestrictedUser && screen === 'broker' && roles.canSeeBroker && <BrokerDashboard />}

@@ -208,7 +208,7 @@ export async function adminAuditRoutes(app: FastifyInstance) {
         const items = await prisma.transaction.findMany({ where, orderBy: { createdAt: 'desc' }, take });
         const walletIds = [...new Set(items.map((item: { walletId: string }) => item.walletId))];
         const wallets = await prisma.wallet.findMany({ where: { id: { in: walletIds } }, include: { user: { select: { id: true, name: true, email: true } } } });
-        type WalletWithUser = { id: string; user: { id: string; name: string; email: string } | null };
+        type WalletWithUser = { id: string; user: { id: string; name: string; email: string | null } | null };
         const walletMap = new Map<string, WalletWithUser>(wallets.map((wallet: WalletWithUser) => [wallet.id, wallet]));
         headers = ['id', 'walletId', 'userId', 'userName', 'userEmail', 'type', 'amount', 'description', 'createdAt'];
         rows = items.map((item: { id: string; walletId: string; type: string; amount: unknown; description: unknown; createdAt: Date }) => {
@@ -454,7 +454,7 @@ export async function adminAuditRoutes(app: FastifyInstance) {
   app.get('/reports/company-revenues', { preHandler: [app.authenticate] }, async (request, reply) => {
     if (!checkAdmin(reply, request)) return;
     const items = await prisma.companyRevenueAccount.findMany({ include: { company: { include: { founder: { select: { id: true, name: true, email: true } } } } }, orderBy: { updatedAt: 'desc' } });
-    return { items: items.map((item: { companyId: string; company: { name: string; ticker: string; founder: { id: string; name: string | null; email: string } | null; status: string; currentPrice: unknown }; balance: unknown; totalReceivedFees: unknown; totalWithdrawn: unknown }) => ({ companyId: item.companyId, token: item.company.name, ticker: item.company.ticker, owner: item.company.founder, balance: item.balance, totalReceivedFees: item.totalReceivedFees, totalWithdrawn: item.totalWithdrawn, status: item.company.status, currentPrice: item.company.currentPrice })) };
+    return { items: items.map((item: { companyId: string; company: { name: string; ticker: string; founder: { id: string; name: string | null; email: string | null } | null; status: string; currentPrice: unknown }; balance: unknown; totalReceivedFees: unknown; totalWithdrawn: unknown }) => ({ companyId: item.companyId, token: item.company.name, ticker: item.company.ticker, owner: item.company.founder, balance: item.balance, totalReceivedFees: item.totalReceivedFees, totalWithdrawn: item.totalWithdrawn, status: item.company.status, currentPrice: item.company.currentPrice })) };
   });
 
   app.get('/reports/platform-account', { preHandler: [app.authenticate] }, async (request, reply) => {

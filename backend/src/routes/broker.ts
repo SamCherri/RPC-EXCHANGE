@@ -15,7 +15,7 @@ const transferSchema = z
     reason: z.string().min(3),
   })
   .refine((data) => Boolean(data.userEmail || data.userId || data.userRef), {
-    message: 'Informe conta RP, personagem, nome, e-mail técnico ou ID do usuário.',
+    message: 'Informe Discord, telefone do jogo, personagem, nome ou ID do usuário.',
     path: ['userRef'],
   });
 
@@ -33,6 +33,8 @@ async function resolveUniqueUserByRef(tx: Prisma.TransactionClient, ref: string)
   const candidates = await tx.user.findMany({
     where: {
       OR: [
+        { discord: { equals: trimmedRef.toLowerCase(), mode: 'insensitive' } },
+        { gamePhone: { equals: trimmedRef, mode: 'insensitive' } },
         { bankAccountNumber: { equals: trimmedRef } },
         { characterName: { equals: trimmedRef, mode: 'insensitive' } },
         { name: { equals: trimmedRef, mode: 'insensitive' } },
@@ -44,7 +46,7 @@ async function resolveUniqueUserByRef(tx: Prisma.TransactionClient, ref: string)
   });
 
   if (candidates.length === 0) throw new Error('Usuário não encontrado.');
-  if (candidates.length > 1) throw new Error('Referência ambígua. Use a Conta RP exata ou o email técnico.');
+  if (candidates.length > 1) throw new Error('Referência ambígua. Use o Discord exato, telefone do jogo ou ID.');
   return candidates[0];
 }
 
