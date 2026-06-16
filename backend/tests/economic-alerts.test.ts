@@ -31,7 +31,7 @@ async function resetDb() {
 
 async function mkRole(key: string) { return prisma.role.create({ data: { key, name: key } }); }
 async function mkUser(email: string) {
-  return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash(PASSWORD, 10), wallet: { create: {} } } });
+  return prisma.user.create({ data: { email, discord: email.replace(/[^a-z0-9]/gi, '_').toLowerCase(), gamePhone: `TEST-${email.replace(/[^a-z0-9]/gi, '_').slice(0, 24)}`, name: email, passwordHash: await bcrypt.hash(PASSWORD, 10), wallet: { create: {} } } });
 }
 
 async function auth(userId: string, roles: string[]) { return app.jwt.sign({ sub: userId, roles }); }

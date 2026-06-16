@@ -107,7 +107,7 @@ model User {
   email        String?          @unique
   discord      String           @unique
   characterName String?
-  gamePhone    String
+  gamePhone    String           @unique
   bankAccountNumber String?
   passwordHash String
   isBlocked    Boolean          @default(false)

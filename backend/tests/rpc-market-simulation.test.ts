@@ -32,7 +32,7 @@ async function mkRole(key: string) {
   return prisma.role.create({ data: { key, name: key } });
 }
 async function mkUser(email: string, roles: { id: string; key: string }[], balances?: { fiat?: number; rpc?: number }) {
-  const user = await prisma.user.create({ data: { email, name: email.split('@')[0], passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
+  const user = await prisma.user.create({ data: { email, discord: email.replace(/[^a-z0-9]/gi, '_').toLowerCase(), gamePhone: `TEST-${email.replace(/[^a-z0-9]/gi, '_').slice(0, 24)}`, name: email.split('@')[0], passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
   await prisma.userRole.createMany({ data: roles.map((r) => ({ userId: user.id, roleId: r.id })) });
   if (balances?.fiat || balances?.rpc) {
     await prisma.wallet.update({

@@ -33,6 +33,11 @@ async function validatePlayerProfileInput(input: { name: string; characterName: 
     throw new Error('Discord já cadastrado.');
   }
 
+  const existingGamePhone = await prisma.user.findUnique({ where: { gamePhone }, select: { id: true } });
+  if (existingGamePhone && existingGamePhone.id !== input.currentUserId) {
+    throw new Error('Telefone do jogo já cadastrado.');
+  }
+
   return { name, characterName, discord, gamePhone };
 }
 

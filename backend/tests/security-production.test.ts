@@ -89,25 +89,25 @@ test('login inválido bloqueia temporariamente e login válido zera contador', a
     await resetDb();
 
     const role = await prisma.role.create({ data: { key: 'USER', name: 'USER' } });
-    const ok = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Teste', characterName: 'Personagem', bankAccountNumber: '12345', email: 'lock@test.local', password: '12345678' } });
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Teste', characterName: 'Personagem', discord: 'lockuser', gamePhone: '12345', password: '12345678' } });
     assert.equal(ok.statusCode, 201, ok.body);
-    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'lock@test.local' } });
+    const user = await prisma.user.findUniqueOrThrow({ where: { discord: 'lockuser' } });
     assert.equal(role.key, 'USER');
 
     for (let i = 0; i < 4; i++) {
-      const bad = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'lock@test.local', password: 'senha-errada' } });
+      const bad = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discord: 'lockuser', password: 'senha-errada' } });
       assert.equal(bad.statusCode, 401);
       assert.equal(bad.json().message, 'Credenciais inválidas.');
     }
 
-    const locked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'lock@test.local', password: 'senha-errada' } });
+    const locked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discord: 'lockuser', password: 'senha-errada' } });
     assert.equal(locked.statusCode, 401);
     assert.equal(locked.json().message, 'Muitas tentativas inválidas. Tente novamente mais tarde.');
 
     const unlockedNow = await prisma.user.update({ where: { id: user.id }, data: { loginLockedUntil: new Date(Date.now() - 1000) } });
     assert.ok(unlockedNow);
 
-    const success = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'lock@test.local', password: '12345678' } });
+    const success = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discord: 'lockuser', password: '12345678' } });
     assert.equal(success.statusCode, 200, success.body);
 
     const refreshed = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });

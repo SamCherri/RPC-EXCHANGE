@@ -16,6 +16,8 @@ export function ProfilePage({ onProfileUpdated }: ProfilePageProps) {
   const [message, setMessage] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     getCurrentUser().then(({ user }) => {
@@ -29,18 +31,42 @@ export function ProfilePage({ onProfileUpdated }: ProfilePageProps) {
 
   async function submitProfile(event: FormEvent) {
     event.preventDefault();
+    if (isSavingProfile) return;
     setMessage('');
-    const response = await api<{ user: CurrentUserResponse['user'] }>('/auth/profile', { method: 'PUT', body: JSON.stringify({ name, characterName, discord, gamePhone }) });
-    onProfileUpdated?.(response.user);
-    setMessage('Perfil atualizado com sucesso.');
+    setIsSavingProfile(true);
+    try {
+      const response = await api<{ user: CurrentUserResponse['user'] }>('/auth/profile', { method: 'PUT', body: JSON.stringify({ name, characterName, discord, gamePhone }) });
+      onProfileUpdated?.(response.user);
+      setMessage('Perfil atualizado com sucesso.');
+    } catch (error) {
+      setMessage((error as Error).message);
+    } finally {
+      setIsSavingProfile(false);
+    }
   }
 
   async function submitPassword(event: FormEvent) {
     event.preventDefault();
+    if (isChangingPassword) return;
     setPasswordMessage('');
-    await api('/auth/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword, confirmPassword }) });
-    setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
-    setPasswordMessage('Senha alterada com sucesso.');
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage('Confirmação de senha não confere.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await api('/auth/change-password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword, confirmPassword }) });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordMessage('Senha alterada com sucesso.');
+    } catch (error) {
+      setPasswordMessage((error as Error).message);
+    } finally {
+      setIsChangingPassword(false);
+    }
   }
 
   if (loading) return <section className="card"><p className="info-text">Carregando perfil...</p></section>;
@@ -49,20 +75,20 @@ export function ProfilePage({ onProfileUpdated }: ProfilePageProps) {
     <h2>👤 Perfil do jogador</h2>
     <p className="info-text">Edite seus dados caso tenha digitado algo errado. Esta tela não altera cargos, saldo, carteira, ordens, mercado ou permissões.</p>
     <form className="form-grid nested-card" onSubmit={submitProfile}>
-      <label>Nome<input value={name} onChange={(e) => setName(e.target.value)} required minLength={3} /></label>
-      <label>Nome do personagem<input value={characterName} onChange={(e) => setCharacterName(e.target.value)} required minLength={3} /></label>
-      <label>Discord<input value={discord} onChange={(e) => setDiscord(e.target.value)} required minLength={2} /></label>
-      <label>Telefone do jogo<input value={gamePhone} onChange={(e) => setGamePhone(e.target.value)} required minLength={3} /></label>
-      <button className="button-primary" type="submit">Editar perfil</button>
+      <label>Nome<input value={name} onChange={(e) => setName(e.target.value)} required minLength={3} disabled={isSavingProfile} /></label>
+      <label>Nome do personagem<input value={characterName} onChange={(e) => setCharacterName(e.target.value)} required minLength={3} disabled={isSavingProfile} /></label>
+      <label>Discord<input value={discord} onChange={(e) => setDiscord(e.target.value)} required minLength={2} disabled={isSavingProfile} /></label>
+      <label>Telefone do jogo<input value={gamePhone} onChange={(e) => setGamePhone(e.target.value)} required minLength={3} disabled={isSavingProfile} /></label>
+      <button className="button-primary" type="submit" disabled={isSavingProfile}>{isSavingProfile ? 'Salvando...' : 'Editar perfil'}</button>
     </form>
     {message && <p className={`status-message ${message.includes('sucesso') ? 'success' : 'error'}`}>{message}</p>}
 
     <h3>Alterar senha</h3>
     <form className="form-grid nested-card" onSubmit={submitPassword}>
-      <label>Senha atual<input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required minLength={8} /></label>
-      <label>Nova senha<input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} /></label>
-      <label>Confirmar nova senha<input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} /></label>
-      <button className="button-secondary" type="submit">Alterar senha</button>
+      <label>Senha atual<input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required minLength={8} disabled={isChangingPassword} /></label>
+      <label>Nova senha<input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} disabled={isChangingPassword} /></label>
+      <label>Confirmar nova senha<input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} disabled={isChangingPassword} /></label>
+      <button className="button-secondary" type="submit" disabled={isChangingPassword}>{isChangingPassword ? 'Alterando...' : 'Alterar senha'}</button>
     </form>
     {passwordMessage && <p className={`status-message ${passwordMessage.includes('sucesso') ? 'success' : 'error'}`}>{passwordMessage}</p>}
   </section>;
