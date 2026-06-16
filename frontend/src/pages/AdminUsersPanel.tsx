@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ConfirmActionModal } from '../components/ConfirmActionModal';
-import { api } from '../services/api';
+import { api, apiBlob } from '../services/api';
 import { translateRole } from '../utils/labels';
 import { getOfficialRoleBadge } from '../utils/roleBadges';
 
@@ -10,6 +10,11 @@ type UserRow = {
   email: string;
   characterName?: string | null;
   bankAccountNumber?: string | null;
+  discordId?: string | null;
+  characterPhone?: string | null;
+  approvalStatus: 'PENDING'|'NEEDS_CORRECTION'|'APPROVED'|'REJECTED';
+  approvalNote?: string | null;
+  financialPermissions?: Array<{ permission: string; revokedAt?: string | null }>;
   roles: string[];
   isBlocked: boolean;
   wallet: {
@@ -54,6 +59,7 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
   const [actionReason, setActionReason] = useState('');
   const [actionConfirmText, setActionConfirmText] = useState('');
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+  const [approvalNote, setApprovalNote] = useState('Cadastro aprovado pela administração.');
 
   async function loadUsers() {
     setLoading(true);
@@ -146,6 +152,36 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
     }
   }
 
+
+
+  async function reviewRegistration(user: UserRow, status: 'APPROVED'|'NEEDS_CORRECTION'|'REJECTED') {
+    setError(''); setSuccess('');
+    try {
+      await api(`/admin/users/${user.id}/approval`, { method: 'PATCH', body: JSON.stringify({ status, note: approvalNote }) });
+      setSuccess('Status de cadastro atualizado.');
+      await loadUsers();
+    } catch (err) { setError((err as Error).message); }
+  }
+
+  async function openRegistrationProof(user: UserRow) {
+    setError('');
+    try {
+      const blob = await apiBlob(`/admin/users/${user.id}/registration-proof`);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (err) { setError((err as Error).message); }
+  }
+
+  async function saveFinancialPermissions(user: UserRow, permissions: string[]) {
+    setError(''); setSuccess('');
+    try {
+      await api(`/admin/users/${user.id}/financial-permissions`, { method: 'PATCH', body: JSON.stringify({ permissions, reason: 'Concessão granular pelo SUPER_ADMIN' }) });
+      setSuccess('Permissões financeiras atualizadas.');
+      await loadUsers();
+    } catch (err) { setError((err as Error).message); }
+  }
+
   async function removeBrokerRole(user: UserRow) {
     const nextRoles = user.roles.filter((role) => role !== 'VIRTUAL_BROKER');
     await api(`/admin/users/${user.id}/roles`, {
@@ -171,6 +207,7 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
         <button className="button-primary" type="submit">{mode === 'brokers' ? 'Buscar corretores' : 'Buscar usuários'}</button>
       </form>
 
+      <label className="admin-modal-field"><span>Nota de aprovação/correção</span><input value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} /></label>
       {error && <p className="status-message error">{error}</p>}
       {success && <p className="status-message success">{success}</p>}
       {loading && <p className="info-text">Carregando usuários...</p>}
@@ -184,13 +221,19 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
             <p>Personagem: {user.characterName ?? 'Sem personagem'}</p>
             <p>Conta RP: {user.bankAccountNumber ?? 'Sem conta RP'}</p>
             <p className="info-text">Email técnico: {user.email}</p>
-            <p>Status: {user.isBlocked ? 'Bloqueado' : 'Ativo'}</p>
+            <p>Status: {user.isBlocked ? 'Bloqueado' : 'Ativo'} · Cadastro: {user.approvalStatus}</p>
+            <p>Discord: {user.discordId ?? 'Não informado'} · Telefone RP: {user.characterPhone ?? 'Não informado'}</p>
+            {user.approvalNote && <p className="status-message warning">Correção/status: {user.approvalNote}</p>}
             <p>Cargos: {user.roles.map((role) => translateRole(role)).join(', ')}</p>
             <p>Disponível: {user.wallet.availableBalance}</p>
             <p>Bloqueado: {user.wallet.lockedBalance}</p>
             <p>Pendente saque: {user.wallet.pendingWithdrawalBalance}</p>
             <div className="action-grid">
-              <button type="button" className="button-primary" onClick={() => startEditingRoles(user)}>Editar permissões</button>
+              <button type="button" className="button-primary" onClick={() => startEditingRoles(user)}>Editar cargos</button>
+              <button type="button" className="button-secondary" onClick={() => openRegistrationProof(user)}>Abrir screenshot</button>
+              <button type="button" className="button-success" onClick={() => reviewRegistration(user, 'APPROVED')}>Aprovar cadastro</button>
+              <button type="button" className="button-secondary" onClick={() => reviewRegistration(user, 'NEEDS_CORRECTION')}>Pedir correção</button>
+              <button type="button" className="button-primary" onClick={() => saveFinancialPermissions(user, ['RPC_MARKET_TRADE','COMPANY_MARKET_TRADE','PROJECT_CREATE','WITHDRAWAL_REQUEST','BROKER_TRANSFER'])}>Conceder permissões financeiras</button>
               {user.isBlocked ? (
                 <button type="button" className="button-success" onClick={() => openBlockModal(user.id, 'unblock')} disabled={isSubmittingAction}>Desbloquear</button>
               ) : (

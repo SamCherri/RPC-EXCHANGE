@@ -70,7 +70,7 @@ export function AdminTokensPanel({ currentUserRoles }: { currentUserRoles: strin
     setMessage('');
     try {
       if (modalState.type === 'owner') {
-        await api(`/admin/tokens/${modalState.tokenId}/owner`, { method: 'PATCH', body: JSON.stringify({ founderEmail: values.founderEmail, reason: values.reason }) });
+        await api(`/admin/tokens/${modalState.tokenId}/owner`, { method: 'PATCH', body: JSON.stringify({ founderRef: values.founderRef, reason: values.reason }) });
         setMessage('Dono alterado com sucesso.');
       } else if (modalState.type === 'forceDelete') {
         await api(`/admin/companies/${modalState.token.id}/force-delete`, {
@@ -178,7 +178,7 @@ export function AdminTokensPanel({ currentUserRoles }: { currentUserRoles: strin
           description={modalState.type === 'suspend' ? 'Informe o motivo da suspensão. O projeto sairá das telas comuns.' : modalState.type === 'reactivate' ? 'Informe o motivo da reativação. O projeto voltará às telas comuns se estiver ativo.' : modalState.type === 'close' ? 'Esta ação encerra o mercado/projeto. Confirme com um motivo claro.' : modalState.type === 'forceDelete' ? `Esta ação apagará o projeto ${modalState.token.name} (${modalState.token.ticker}) e todo histórico vinculado. Use apenas para dados de teste.` : 'Informe o e-mail do novo dono e o motivo da alteração.'}
           confirmLabel={modalState.type === 'owner' ? 'Trocar dono' : modalState.type === 'suspend' ? 'Suspender projeto' : modalState.type === 'reactivate' ? 'Reativar projeto' : modalState.type === 'forceDelete' ? 'Excluir teste definitivamente' : 'Encerrar projeto'}
           danger={modalState.type === 'close' || modalState.type === 'forceDelete'}
-          fields={modalState.type === 'owner' ? [{ name: 'founderEmail', label: 'E-mail do novo dono', type: 'email', required: true, placeholder: 'email@projeto.com' }, { name: 'reason', label: 'Motivo', type: 'textarea', required: true, placeholder: 'Descreva o motivo da alteração' }] : modalState.type === 'forceDelete' ? [{ name: 'reason', label: 'Motivo (mínimo 10 caracteres)', type: 'textarea', required: true, placeholder: 'Descreva detalhadamente o motivo da exclusão de teste', minLength: 10 }, { name: 'confirmation', label: 'Confirmação', type: 'text', required: true, placeholder: 'Digite EXCLUIR DEFINITIVAMENTE', pattern: '^EXCLUIR DEFINITIVAMENTE$' }] : [{ name: 'reason', label: 'Motivo', type: 'textarea', required: true, placeholder: 'Descreva o motivo' }]}
+          fields={modalState.type === 'owner' ? [{ name: 'founderRef', label: 'E-mail ou ID do novo dono', type: 'text', required: true, placeholder: 'email@projeto.com ou id do usuário' }, { name: 'reason', label: 'Motivo', type: 'textarea', required: true, placeholder: 'Descreva o motivo da alteração' }] : modalState.type === 'forceDelete' ? [{ name: 'reason', label: 'Motivo (mínimo 10 caracteres)', type: 'textarea', required: true, placeholder: 'Descreva detalhadamente o motivo da exclusão de teste', minLength: 10 }, { name: 'confirmation', label: 'Confirmação', type: 'text', required: true, placeholder: 'Digite EXCLUIR DEFINITIVAMENTE', pattern: '^EXCLUIR DEFINITIVAMENTE$' }] : [{ name: 'reason', label: 'Motivo', type: 'textarea', required: true, placeholder: 'Descreva o motivo' }]}
           onCancel={() => setModalState(null)}
           onConfirm={submitTokenAction}
           isSubmitting={isSubmittingModal}

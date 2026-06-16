@@ -11,6 +11,7 @@ import { ProjectOwnerPanel } from './pages/ProjectOwnerPanel';
 import { RpcMarketPage } from './pages/RpcMarketPage';
 import { TestModePage } from './pages/TestModePage';
 import { TestModeRankingPage } from './pages/TestModeRankingPage';
+import { RegistrationStatusPage } from './pages/RegistrationStatusPage';
 import { TestModeReportPage } from './pages/TestModeReportPage';
 import { api, getCurrentUser, CurrentUserResponse } from './services/api';
 import { BrandLogo } from './components/BrandLogo';
@@ -94,6 +95,7 @@ export function App() {
   }, [currentUser, tokenRoles]);
   const canSeeMyProjects = roles.canSeeProjectOwner || hasOwnedProjects;
 
+  const registrationBlocked = Boolean(token && currentUser && !roles.canSeeAdmin && currentUser.approvalStatus !== 'APPROVED');
   const isTestModeRestrictedUser = systemMode === 'TEST' && !roles.canSeeAdmin;
   const shouldShowTestModeEntry = roles.canSeeAdmin || systemMode === 'TEST';
   async function loadSystemMode() {
@@ -257,6 +259,10 @@ export function App() {
     items.push({ key: 'logout', label: 'Sair', icon: '🚪', danger: true, section: 'danger', onClick: handleLogout });
     return items;
   }, [canSeeMyProjects, handleLogout, isTestModeRestrictedUser, roles.canSeeAdmin, roles.canSeeBroker, screen, shouldShowTestModeEntry]);
+
+  if (registrationBlocked) {
+    return <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />;
+  }
 
   if (!token) {
     return (

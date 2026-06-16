@@ -4,7 +4,7 @@ import { validatePublicNameAllowed, validateRpAccountUnique } from './content-mo
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
-export async function registerUser(name: string, characterName: string, bankAccountNumber: string, email: string, password: string) {
+export async function registerUser(name: string, characterName: string, bankAccountNumber: string, discordId: string, characterPhone: string, email: string, password: string, proof: { mimeType: string; fileName?: string; data: string; checksum: string }) {
   const normalizedEmail = email.trim().toLowerCase();
   const exists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (exists) {
@@ -14,6 +14,9 @@ export async function registerUser(name: string, characterName: string, bankAcco
   await validatePublicNameAllowed(name, 'user');
   await validatePublicNameAllowed(characterName, 'character');
   await validateRpAccountUnique(bankAccountNumber);
+
+  const discordExists = await prisma.user.findFirst({ where: { discordId: { equals: discordId.trim(), mode: 'insensitive' } }, select: { id: true } });
+  if (discordExists) throw new Error('Discord já cadastrado.');
 
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -29,6 +32,10 @@ export async function registerUser(name: string, characterName: string, bankAcco
       passwordHash,
       characterName,
       bankAccountNumber,
+      discordId: discordId.trim(),
+      characterPhone: characterPhone.trim(),
+      approvalStatus: 'PENDING',
+      registrationProof: { create: proof },
       wallet: { create: {} },
       roles: { create: [{ roleId: userRole.id }] },
     },

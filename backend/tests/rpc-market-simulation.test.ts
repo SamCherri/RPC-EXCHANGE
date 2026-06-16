@@ -22,17 +22,23 @@ async function resetDb() {
     prisma.companyHolding.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.companyBoostInjection.deleteMany(),
     prisma.companyBoostAccount.deleteMany(), prisma.company.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.coinIssuance.deleteMany(),
     prisma.transaction.deleteMany(), prisma.withdrawalRequest.deleteMany(), prisma.adminLog.deleteMany(), prisma.brokerAccount.deleteMany(),
-    prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(),
+    prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(),
+    prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(),
     prisma.testModeReport.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(),
     prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(),
   ]);
+}
+
+async function grantTestFinancialPermissions(userId: string) {
+  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
 }
 
 async function mkRole(key: string) {
   return prisma.role.create({ data: { key, name: key } });
 }
 async function mkUser(email: string, roles: { id: string; key: string }[], balances?: { fiat?: number; rpc?: number }) {
-  const user = await prisma.user.create({ data: { email, name: email.split('@')[0], passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
+  const user = await prisma.user.create({ data: { email, name: email.split('@')[0], approvalStatus: 'APPROVED', passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
+  await grantTestFinancialPermissions(user.id);
   await prisma.userRole.createMany({ data: roles.map((r) => ({ userId: user.id, roleId: r.id })) });
   if (balances?.fiat || balances?.rpc) {
     await prisma.wallet.update({

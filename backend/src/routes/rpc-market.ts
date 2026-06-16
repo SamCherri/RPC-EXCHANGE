@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { RPC_MARKET_BUY_FEE_PERCENT, RPC_MARKET_SELL_FEE_PERCENT } from '../constants/fee-rules.js';
 import { ensurePlatformAccount } from '../services/fee-distribution-service.js';
+import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { MAX_ORDER_CANCELS_PER_MINUTE, MAX_RPC_TRADES_PER_MINUTE, RPC_MARKET_MAX_OPEN_ORDERS_PER_USER } from '../config/anti-abuse-limits.js';
 
 const MIN_AMOUNT = new Decimal('0.01');
@@ -232,6 +233,7 @@ export async function rpcMarketRoutes(app: FastifyInstance) {
 
   app.post('/rpc-market/buy', { preHandler: [app.authenticate], config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: MAX_RPC_TRADES_PER_MINUTE, timeWindow: '1 minute', errorResponseBuilder: () => ({ message: 'Muitas negociações em sequência. Aguarde um minuto e tente novamente.' }) } } }, async (request, reply) => {
     try {
+      await assertFinancialPermission((request.user as { sub: string }).sub, 'RPC_MARKET_TRADE');
       const body = amountSchema.parse(request.body ?? {});
       if (body.fiatAmount == null) return reply.status(400).send({ message: 'fiatAmount é obrigatório.' });
       const grossFiatAmount = toDecimal(body.fiatAmount).toDecimalPlaces(2);
@@ -285,6 +287,7 @@ export async function rpcMarketRoutes(app: FastifyInstance) {
     try {
       const body = limitOrderCreateSchema.parse(request.body ?? {});
       const userId = (request.user as { sub: string }).sub;
+      await assertFinancialPermission(userId, 'RPC_MARKET_TRADE');
       const openOrdersCount = await prisma.rpcLimitOrder.count({ where: { userId, status: 'OPEN' } });
       if (openOrdersCount >= RPC_MARKET_MAX_OPEN_ORDERS_PER_USER) {
         return reply.status(429).send({ message: 'Limite de ordens abertas atingido. Cancele ordens antigas antes de criar novas.' });
@@ -430,6 +433,7 @@ export async function rpcMarketRoutes(app: FastifyInstance) {
 
   app.post('/rpc-market/sell', { preHandler: [app.authenticate], config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: MAX_RPC_TRADES_PER_MINUTE, timeWindow: '1 minute', errorResponseBuilder: () => ({ message: 'Muitas negociações em sequência. Aguarde um minuto e tente novamente.' }) } } }, async (request, reply) => {
     try {
+      await assertFinancialPermission((request.user as { sub: string }).sub, 'RPC_MARKET_TRADE');
       const body = amountSchema.parse(request.body ?? {});
       if (body.rpcAmount == null) return reply.status(400).send({ message: 'rpcAmount é obrigatório.' });
       const rpcAmount = toDecimal(body.rpcAmount).toDecimalPlaces(2);

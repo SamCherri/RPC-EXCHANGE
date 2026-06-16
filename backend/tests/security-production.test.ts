@@ -89,7 +89,7 @@ test('login inválido bloqueia temporariamente e login válido zera contador', a
     await resetDb();
 
     const role = await prisma.role.create({ data: { key: 'USER', name: 'USER' } });
-    const ok = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Teste', characterName: 'Personagem', bankAccountNumber: '12345', email: 'lock@test.local', password: '12345678' } });
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Teste', characterName: 'Personagem', bankAccountNumber: '12345', discordId: 'discord-lock', characterPhone: '555-0100', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'lock@test.local', password: '12345678' } });
     assert.equal(ok.statusCode, 201, ok.body);
     const user = await prisma.user.findUniqueOrThrow({ where: { email: 'lock@test.local' } });
     assert.equal(role.key, 'USER');

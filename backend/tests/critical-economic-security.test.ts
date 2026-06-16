@@ -38,6 +38,7 @@ async function resetDb() {
     prisma.adminLog.deleteMany(),
     prisma.brokerAccount.deleteMany(),
     prisma.wallet.deleteMany(),
+    prisma.userFinancialPermission.deleteMany(),
     prisma.userRole.deleteMany(),
     prisma.rolePermission.deleteMany(),
     prisma.permission.deleteMany(),
@@ -54,7 +55,13 @@ async function resetDb() {
 }
 
 async function mkUser(email: string, name = 'User') {
-  return prisma.user.create({ data: { email, name, passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
+  const user = await prisma.user.create({ data: { email, name, approvalStatus: 'APPROVED', passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10), wallet: { create: {} } } });
+  await grantTestFinancialPermissions(user.id);
+  return user;
+}
+
+async function grantTestFinancialPermissions(userId: string) {
+  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
 }
 
 async function mkRole(key: string) {
@@ -712,7 +719,7 @@ test('cadastro salva characterName e bankAccountNumber e /auth/me retorna campos
   await resetDb();
   await mkRole('USER');
 
-  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', bankAccountNumber: 'RP-001', email: 'register@test.local', password: '12345678' } });
+  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', bankAccountNumber: 'RP-001', discordId: 'discord-register-1', characterPhone: '555-0001', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'register@test.local', password: '12345678' } });
   assert.equal(register.statusCode, 201, register.body);
   const payload = register.json();
   assert.equal(payload.characterName, 'Kenshin');
@@ -727,10 +734,10 @@ test('cadastro salva characterName e bankAccountNumber e /auth/me retorna campos
   assert.equal(me.json().user.characterName, 'Kenshin');
   assert.equal(me.json().user.bankAccountNumber, 'RP-001');
 
-  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', bankAccountNumber: 'RP-002', email: 'invalid-char@test.local', password: '12345678' } });
+  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', bankAccountNumber: 'RP-002', discordId: 'discord-invalid-char', characterPhone: '555-0002', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'invalid-char@test.local', password: '12345678' } });
   assert.equal(invalidCharacter.statusCode, 400);
 
-  const invalidBank = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Three', characterName: 'ValidName', bankAccountNumber: '12', email: 'invalid-bank@test.local', password: '12345678' } });
+  const invalidBank = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Three', characterName: 'ValidName', bankAccountNumber: '12', discordId: 'discord-invalid-bank', characterPhone: '555-0003', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'invalid-bank@test.local', password: '12345678' } });
   assert.equal(invalidBank.statusCode, 400);
 });
 

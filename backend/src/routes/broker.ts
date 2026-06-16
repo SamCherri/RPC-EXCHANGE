@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { prisma } from '../lib/prisma.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -91,6 +92,7 @@ export async function brokerRoutes(app: FastifyInstance) {
     if (!requireBroker(reply, roles)) return;
 
     try {
+      await assertFinancialPermission(authRequest.user.sub, 'BROKER_TRANSFER');
       const body = transferSchema.parse(request.body);
 
       const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {

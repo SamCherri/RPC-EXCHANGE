@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z, ZodError } from 'zod';
 import { loginUser, registerUser } from '../services/auth-service.js';
 import { prisma } from '../lib/prisma.js';
+import { createHash } from 'node:crypto';
 
 export async function authRoutes(app: FastifyInstance) {
   app.post('/auth/register', { config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 10, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -9,13 +10,22 @@ export async function authRoutes(app: FastifyInstance) {
       name: z.string().min(3),
       characterName: z.string().min(3),
       bankAccountNumber: z.string().min(3),
+      discordId: z.string().min(2),
+      characterPhone: z.string().min(3),
+      screenshot: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']), fileName: z.string().optional(), data: z.string().min(20) }),
       email: z.string().email(),
       password: z.string().min(8),
     });
 
     try {
       const body = schema.parse(request.body);
-      const user = await registerUser(body.name, body.characterName, body.bankAccountNumber, body.email, body.password);
+      const cleanData = body.screenshot.data.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
+      const user = await registerUser(body.name, body.characterName, body.bankAccountNumber, body.discordId, body.characterPhone, body.email, body.password, {
+        mimeType: body.screenshot.mimeType,
+        fileName: body.screenshot.fileName,
+        data: cleanData,
+        checksum: createHash('sha256').update(cleanData).digest('hex'),
+      });
       await app.logAdmin({ action: 'CREATE_ACCOUNT', entity: 'User', userId: user.id, reason: 'Cadastro inicial' });
 
       return reply.code(201).send({
@@ -23,6 +33,9 @@ export async function authRoutes(app: FastifyInstance) {
         name: user.name,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
+        discordId: user.discordId,
+        characterPhone: user.characterPhone,
+        approvalStatus: user.approvalStatus,
         email: user.email,
       });
     } catch (error) {
@@ -60,6 +73,9 @@ export async function authRoutes(app: FastifyInstance) {
         name: user.name,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
+        discordId: user.discordId,
+        characterPhone: user.characterPhone,
+        approvalStatus: user.approvalStatus,
         email: user.email,
         roles,
         isBlocked: user.isBlocked,
