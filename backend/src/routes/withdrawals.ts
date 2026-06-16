@@ -3,6 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { MAX_PENDING_WITHDRAWALS_PER_USER } from '../config/anti-abuse-limits.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -67,6 +68,7 @@ export async function withdrawalsRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
 
     try {
+      await assertFinancialPermission(authRequest.user.sub, 'WITHDRAWAL_REQUEST');
       const body = requestWithdrawalSchema.parse(request.body);
 
       const created = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {

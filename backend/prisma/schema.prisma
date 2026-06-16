@@ -7,6 +7,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum RegistrationApprovalStatus {
+  PENDING
+  NEEDS_CORRECTION
+  APPROVED
+  REJECTED
+}
+
+enum FinancialPermissionKey {
+  RPC_MARKET_TRADE
+  COMPANY_MARKET_TRADE
+  PROJECT_CREATE
+  WITHDRAWAL_REQUEST
+  BROKER_TRANSFER
+}
+
 enum CompanyStatus {
   PENDING
   APPROVED
@@ -107,6 +122,12 @@ model User {
   email        String           @unique
   characterName String?
   bankAccountNumber String?
+  discordId String? @unique
+  characterPhone String?
+  approvalStatus RegistrationApprovalStatus @default(PENDING)
+  approvalNote String?
+  approvedAt DateTime?
+  approvedById String?
   passwordHash String
   isBlocked    Boolean          @default(false)
   failedLoginAttempts Int       @default(0)
@@ -117,6 +138,7 @@ model User {
   roles        UserRole[]
   companies    Company[]        @relation("CompanyFounder")
   logs         AdminLog[]
+  approvedBy   User?            @relation("UserRegistrationApprover", fields: [approvedById], references: [id])
   transfersOut CoinTransfer[]   @relation("transfer_sender")
   transfersIn  CoinTransfer[]   @relation("transfer_receiver")
   holdings     CompanyHolding[]
@@ -134,7 +156,40 @@ model User {
   testModeWallet TestModeWallet?
   testModeTrades TestModeTrade[]
   testModeReports TestModeReport[]
+  registrationProof RegistrationProof?
+  approvedRegistrations User[] @relation("UserRegistrationApprover")
+  financialPermissions UserFinancialPermission[] @relation("FinancialPermissionUser")
+  grantedFinancialPermissions UserFinancialPermission[] @relation("FinancialPermissionGrantor")
 }
+
+model RegistrationProof {
+  id String @id @default(cuid())
+  userId String @unique
+  mimeType String
+  fileName String?
+  data String
+  checksum String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserFinancialPermission {
+  id String @id @default(cuid())
+  userId String
+  permission FinancialPermissionKey
+  grantedById String
+  grantedAt DateTime @default(now())
+  revokedAt DateTime?
+  reason String
+  user User @relation("FinancialPermissionUser", fields: [userId], references: [id])
+  grantedBy User @relation("FinancialPermissionGrantor", fields: [grantedById], references: [id])
+
+  @@unique([userId, permission])
+  @@index([permission])
+  @@index([revokedAt])
+}
+
 
 model Role {
   id          String           @id @default(cuid())

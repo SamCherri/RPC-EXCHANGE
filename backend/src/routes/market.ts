@@ -4,6 +4,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { distributeFee } from '../services/fee-distribution-service.js';
+import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { COMPANY_MARKET_MAX_OPEN_ORDERS_PER_USER, MAX_COMPANY_TRADES_PER_MINUTE, MAX_ORDER_CANCELS_PER_MINUTE } from '../config/anti-abuse-limits.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -481,6 +482,7 @@ export async function marketRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
 
     try {
+      await assertFinancialPermission(authRequest.user.sub, 'COMPANY_MARKET_TRADE');
       const body = createOrderSchema.parse(request.body);
       const openOrdersCount = await prisma.marketOrder.count({
         where: {

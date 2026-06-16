@@ -10,6 +10,9 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
   const [name, setName] = useState('');
   const [characterName, setCharacterName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [discordId, setDiscordId] = useState('');
+  const [characterPhone, setCharacterPhone] = useState('');
+  const [screenshot, setScreenshot] = useState<{ mimeType: 'image/png'|'image/jpeg'|'image/webp'; fileName?: string; data: string } | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -19,15 +22,19 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
     event.preventDefault();
     setIsLoading(true);
     try {
+      if (!screenshot) throw new Error('Envie o screenshot obrigatório do cadastro.');
       await api('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, characterName, bankAccountNumber, email, password }),
+        body: JSON.stringify({ name, characterName, bankAccountNumber, discordId, characterPhone, email, password, screenshot }),
       });
       setMessage('✓ Conta criada com sucesso! Redirecionando para login...');
       setTimeout(() => {
         setName('');
         setCharacterName('');
         setBankAccountNumber('');
+        setDiscordId('');
+        setCharacterPhone('');
+        setScreenshot(null);
         setEmail('');
         setPassword('');
         if (onSwitchLogin) onSwitchLogin();
@@ -82,6 +89,23 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
             minLength={3} 
           />
           <small className="label-hint">Fictícia, usada apenas no RP</small>
+        </label>
+
+        <label>
+          <span className="label-text">Discord</span>
+          <input placeholder="Ex.: usuario#0001 ou ID do Discord" value={discordId} onChange={(event) => setDiscordId(event.target.value)} disabled={isLoading} required minLength={2} />
+        </label>
+
+        <label>
+          <span className="label-text">Telefone do personagem</span>
+          <input placeholder="Ex.: 555-0199" value={characterPhone} onChange={(event) => setCharacterPhone(event.target.value)} disabled={isLoading} required minLength={3} />
+          <small className="label-hint">Telefone fictício usado dentro do RP.</small>
+        </label>
+
+        <label>
+          <span className="label-text">Screenshot obrigatório</span>
+          <input type="file" accept="image/png,image/jpeg,image/webp" disabled={isLoading} required onChange={(event) => { const file = event.target.files?.[0]; if (!file) { setScreenshot(null); return; } const reader = new FileReader(); reader.onload = () => setScreenshot({ mimeType: file.type as 'image/png'|'image/jpeg'|'image/webp', fileName: file.name, data: String(reader.result) }); reader.readAsDataURL(file); }} />
+          <small className="label-hint">Use imagem PNG, JPG ou WEBP. O envio é analisado pela administração.</small>
         </label>
 
         <label>

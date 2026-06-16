@@ -271,12 +271,14 @@ export async function adminTokensRoutes(app: FastifyInstance) {
 
     try {
       const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-      const body = z.object({ founderEmail: z.string().email().optional(), founderUserId: z.string().min(1).optional(), reason: z.string().min(2) }).parse(request.body);
+      const body = z.object({ founderRef: z.string().min(1).optional(), founderEmail: z.string().email().optional(), founderUserId: z.string().min(1).optional(), reason: z.string().min(2) }).parse(request.body);
 
-      const normalizedFounderEmail = body.founderEmail?.trim().toLowerCase();
+      const founderRef = body.founderRef?.trim();
+      const normalizedFounderEmail = body.founderEmail?.trim().toLowerCase() ?? (founderRef?.includes('@') ? founderRef.toLowerCase() : undefined);
+      const founderUserId = body.founderUserId ?? (founderRef && !founderRef.includes('@') ? founderRef : undefined);
       const nextOwner = normalizedFounderEmail
         ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
-        : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
+        : (founderUserId ? await prisma.user.findUnique({ where: { id: founderUserId } }) : null);
 
       const [company, ownerRole] = await Promise.all([
         prisma.company.findUnique({ where: { id } }),

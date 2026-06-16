@@ -42,6 +42,10 @@ export type CurrentUserResponse = {
     email: string;
     characterName?: string | null;
     bankAccountNumber?: string | null;
+    discordId?: string | null;
+    characterPhone?: string | null;
+    approvalStatus: 'PENDING'|'NEEDS_CORRECTION'|'APPROVED'|'REJECTED';
+    approvalNote?: string | null;
     roles: string[];
     isBlocked: boolean;
     createdAt: string;
@@ -60,4 +64,16 @@ export type CurrentUserResponse = {
 
 export function getCurrentUser() {
   return api<CurrentUserResponse>('/auth/me');
+}
+
+export async function apiBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const token = localStorage.getItem('token');
+  const headers = new Headers(init?.headers ?? {});
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(`${API_URL}/api${path}`, { ...init, headers });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message ?? 'Erro inesperado na API.');
+  }
+  return response.blob();
 }

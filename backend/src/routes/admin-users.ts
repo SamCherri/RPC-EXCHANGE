@@ -62,12 +62,16 @@ export async function adminUsersRoutes(app: FastifyInstance) {
     });
 
     return {
-      users: users.map((user: { id: string; name: string | null; email: string; characterName: string | null; bankAccountNumber: string | null; roles: Array<{ role: { key: string } }>; isBlocked: boolean; wallet: { availableBalance: unknown; lockedBalance: unknown; pendingWithdrawalBalance: unknown } | null; createdAt: Date }) => ({
+      users: users.map((user) => ({
         id: user.id,
         name: user.name,
         email: user.email,
         characterName: user.characterName,
         bankAccountNumber: user.bankAccountNumber,
+        discordId: user.discordId,
+        characterPhone: user.characterPhone,
+        approvalStatus: user.approvalStatus,
+        approvalNote: user.approvalNote,
         roles: user.roles.map((role: { role: { key: string } }) => role.role.key),
         isBlocked: user.isBlocked,
         wallet: {
@@ -92,6 +96,8 @@ export async function adminUsersRoutes(app: FastifyInstance) {
       include: {
         roles: { include: { role: true } },
         wallet: true,
+        registrationProof: true,
+        financialPermissions: true,
         companies: { select: { id: true, name: true, ticker: true, status: true, createdAt: true } },
         holdings: {
           include: { company: { select: { id: true, ticker: true, name: true, status: true } } },
@@ -134,6 +140,8 @@ export async function adminUsersRoutes(app: FastifyInstance) {
         createdAt: user.createdAt,
       },
       roles: user.roles.map((role: { role: { key: string } }) => role.role.key),
+      registrationProof: user.registrationProof ? { id: user.registrationProof.id, mimeType: user.registrationProof.mimeType, fileName: user.registrationProof.fileName, checksum: user.registrationProof.checksum, updatedAt: user.registrationProof.updatedAt } : null,
+      financialPermissions: user.financialPermissions,
       wallet: user.wallet,
       brokerAccount,
       projects: user.companies,
@@ -142,6 +150,66 @@ export async function adminUsersRoutes(app: FastifyInstance) {
       latestWithdrawals,
       latestAdminLogs,
     };
+  });
+
+
+  app.get('/users/pending-registrations', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    const roles = authRequest.user.roles ?? [];
+    if (!ensureAdmin(reply, roles)) return;
+    const users = await prisma.user.findMany({
+      where: { approvalStatus: { in: ['PENDING', 'NEEDS_CORRECTION'] } },
+      include: { registrationProof: { select: { id: true, mimeType: true, fileName: true, checksum: true, updatedAt: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+    });
+    return { users };
+  });
+
+  app.get('/users/:id/registration-proof', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    const roles = authRequest.user.roles ?? [];
+    if (!ensureAdmin(reply, roles)) return;
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const proof = await prisma.registrationProof.findUnique({ where: { userId: id } });
+    if (!proof) return reply.code(404).send({ message: 'Comprovante não encontrado.' });
+    return reply.header('Content-Type', proof.mimeType).send(Buffer.from(proof.data, 'base64'));
+  });
+
+  app.patch('/users/:id/approval', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    const roles = authRequest.user.roles ?? [];
+    if (!ensureAdmin(reply, roles)) return;
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z.object({ status: z.enum(['APPROVED', 'NEEDS_CORRECTION', 'REJECTED']), note: z.string().min(3).optional() }).parse(request.body);
+    const previous = await prisma.user.findUnique({ where: { id }, select: { approvalStatus: true, approvalNote: true } });
+    if (!previous) return reply.code(404).send({ message: 'Usuário não encontrado.' });
+    const updated = await prisma.user.update({ where: { id }, data: { approvalStatus: body.status, approvalNote: body.note ?? null, approvedAt: body.status === 'APPROVED' ? new Date() : null, approvedById: body.status === 'APPROVED' ? authRequest.user.sub : null } });
+    await prisma.adminLog.create({ data: { userId: authRequest.user.sub, action: 'ADMIN_REGISTRATION_REVIEWED', entity: `User:${id}`, previous: JSON.stringify(previous), current: JSON.stringify({ approvalStatus: updated.approvalStatus, approvalNote: updated.approvalNote }), reason: body.note ?? 'Revisão de cadastro', ip: request.ip, userAgent: request.headers['user-agent'] ?? null } });
+    return { message: 'Status de cadastro atualizado.', user: updated };
+  });
+
+  app.patch('/users/:id/financial-permissions', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    const roles = authRequest.user.roles ?? [];
+    if (!roles.includes('SUPER_ADMIN')) return reply.code(403).send({ message: 'Somente SUPER_ADMIN concede permissões financeiras.' });
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z.object({ permissions: z.array(z.enum(['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'])), reason: z.string().min(5) }).parse(request.body);
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return reply.code(404).send({ message: 'Usuário não encontrado.' });
+    await prisma.$transaction(async (tx) => {
+      const requested = new Set(body.permissions);
+      const existing = await tx.userFinancialPermission.findMany({ where: { userId: id } });
+      for (const grant of existing) {
+        if (!requested.has(grant.permission) && !grant.revokedAt) await tx.userFinancialPermission.update({ where: { id: grant.id }, data: { revokedAt: new Date(), reason: body.reason } });
+      }
+      for (const permission of requested) {
+        await tx.userFinancialPermission.upsert({ where: { userId_permission: { userId: id, permission } }, update: { revokedAt: null, grantedById: authRequest.user.sub, reason: body.reason }, create: { userId: id, permission, grantedById: authRequest.user.sub, reason: body.reason } });
+      }
+      await tx.adminLog.create({ data: { userId: authRequest.user.sub, action: 'ADMIN_FINANCIAL_PERMISSIONS_UPDATED', entity: `User:${id}`, current: JSON.stringify({ permissions: body.permissions }), reason: body.reason, ip: request.ip, userAgent: request.headers['user-agent'] ?? null } });
+    });
+    const financialPermissions = await prisma.userFinancialPermission.findMany({ where: { userId: id } });
+    return { message: 'Permissões financeiras atualizadas.', financialPermissions };
   });
 
   app.patch('/users/:id/roles', { preHandler: [app.authenticate], config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 25, timeWindow: '1 minute' } } }, async (request, reply) => {

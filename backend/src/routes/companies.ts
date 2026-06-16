@@ -6,6 +6,7 @@ import { prisma } from '../lib/prisma.js';
 import { MAX_COMPANY_TRADES_PER_MINUTE, MAX_PROJECT_CREATIONS_PER_DAY } from '../config/anti-abuse-limits.js';
 import { COMPANY_RULES } from '../constants/company-rules.js';
 import { distributeFee, ensureCompanyRevenueAccount } from '../services/fee-distribution-service.js';
+import { assertApprovedUser, assertFinancialPermission } from '../services/registration-approval-service.js';
 import { validateDescriptionAllowed, validatePublicNameAllowed, validateTickerAllowed } from '../services/content-moderation-service.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -72,6 +73,7 @@ export async function companyRoutes(app: FastifyInstance) {
 
     try {
       const body = companyRequestSchema.parse(request.body);
+      await assertFinancialPermission(authRequest.user.sub, 'PROJECT_CREATE');
       assertCompanyRequestRules(body);
       const roles = authRequest.user.roles ?? [];
       const isAdminUser = isAdmin(roles);
