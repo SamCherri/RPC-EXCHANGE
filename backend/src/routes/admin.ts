@@ -8,6 +8,9 @@ import { getMarketHealthReport } from '../services/market-health-service.js';
 import { toCsv } from '../services/csv-export-service.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
+type WalletRecord = Prisma.WalletGetPayload<Record<string, never>>;
+type RpcLimitOrderRecord = Prisma.RpcLimitOrderGetPayload<Record<string, never>>;
+type MarketOrderRecord = Prisma.MarketOrderGetPayload<Record<string, never>>;
 
 const amountSchema = z.coerce.number().positive();
 
@@ -103,7 +106,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const alerts: EconomicAlert[] = [];
     const unitPriceTolerance = 0.000001;
 
-    const wallets = await prisma.wallet.findMany();
+    const wallets: WalletRecord[] = await prisma.wallet.findMany();
     for (const wallet of wallets) {
       const monitoredFields: Array<keyof typeof wallet> = [
         'availableBalance',
@@ -133,10 +136,10 @@ export async function adminRoutes(app: FastifyInstance) {
       }
     }
 
-    const openRpcOrders = await prisma.rpcLimitOrder.findMany({ where: { status: 'OPEN' } });
+    const openRpcOrders: RpcLimitOrderRecord[] = await prisma.rpcLimitOrder.findMany({ where: { status: 'OPEN' } });
     const rpcOpenBuyByUser = new Set(openRpcOrders.filter((order) => order.side === 'BUY_RPC').map((order) => order.userId));
     const rpcOpenSellByUser = new Set(openRpcOrders.filter((order) => order.side === 'SELL_RPC').map((order) => order.userId));
-    const marketOpenOrders = await prisma.marketOrder.findMany({ where: { status: { in: ['OPEN', 'PARTIALLY_FILLED'] } } });
+    const marketOpenOrders: MarketOrderRecord[] = await prisma.marketOrder.findMany({ where: { status: { in: ['OPEN', 'PARTIALLY_FILLED'] } } });
     const openMarketByUser = new Set(marketOpenOrders.map((order) => order.userId));
 
     for (const wallet of wallets) {

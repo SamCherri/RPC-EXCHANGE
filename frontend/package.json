@@ -6,16 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:android": "node scripts/validate-android-api-url.mjs && vite build",
+    "android:add": "cap add android",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:open": "cap open android",
     "lint": "echo 'lint pendente frontend'",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0",
     "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173} --strictPort"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.0",
+    "@capacitor/core": "^7.6.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",

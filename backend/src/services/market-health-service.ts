@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
 type Severity = 'CRITICAL' | 'WARNING';
@@ -17,6 +18,7 @@ type MarketHealthIssue = {
 };
 
 type MarketHealthSection = { status: Status; issues: MarketHealthIssue[]; metrics: Record<string, unknown> };
+type RpcLimitOrderRecord = Prisma.RpcLimitOrderGetPayload<Record<string, never>>;
 
 const TRADE_LIMIT = 1000;
 
@@ -29,7 +31,7 @@ export async function getMarketHealthReport() {
     prisma.testModeMarketState.findFirst(),
     prisma.testModeTrade.findMany({ take: TRADE_LIMIT, orderBy: { createdAt: 'desc' } }),
     prisma.wallet.findMany(),
-    prisma.rpcLimitOrder.findMany({ where: { status: { in: ['OPEN'] } } }),
+    prisma.rpcLimitOrder.findMany({ where: { status: { in: ['OPEN'] } } }) as Promise<RpcLimitOrderRecord[]>,
     prisma.rpcExchangeTrade.findMany({ take: TRADE_LIMIT, orderBy: { createdAt: 'desc' } }),
     prisma.rpcMarketState.findFirst(),
     prisma.platformAccount.findMany(),
