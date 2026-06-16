@@ -70,7 +70,13 @@ export function AdminTokensPanel({ currentUserRoles }: { currentUserRoles: strin
     setMessage('');
     try {
       if (modalState.type === 'owner') {
-        await api(`/admin/tokens/${modalState.tokenId}/owner`, { method: 'PATCH', body: JSON.stringify({ founderEmail: values.founderEmail, reason: values.reason }) });
+        const founderRef = values.founderRef?.trim() ?? '';
+        const ownerPayload = {
+          founderRef,
+          ...(founderRef.includes('@') && !founderRef.startsWith('@') ? { founderEmail: founderRef } : {}),
+          reason: values.reason,
+        };
+        await api(`/admin/tokens/${modalState.tokenId}/owner`, { method: 'PATCH', body: JSON.stringify(ownerPayload) });
         setMessage('Dono alterado com sucesso.');
       } else if (modalState.type === 'forceDelete') {
         await api(`/admin/companies/${modalState.token.id}/force-delete`, {

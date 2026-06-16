@@ -48,10 +48,31 @@ export async function replaceActiveRegistrationEvidence(userId: string, input: E
   const parsed = parseAndValidateEvidence(input);
   const storageKey = `registration/${userId}/${parsed.sha256}`;
 
+  const existingEvidence = await tx.registrationEvidence.findUnique({ where: { storageKey } });
+  if (existingEvidence && existingEvidence.userId !== userId) {
+    throw new Error('Comprovante pertence a outro usuário.');
+  }
+
+  const replacedAt = new Date();
   await tx.registrationEvidence.updateMany({
-    where: { userId, status: 'ACTIVE' },
-    data: { status: 'REPLACED', replacedAt: new Date() },
+    where: { userId, status: 'ACTIVE', ...(existingEvidence ? { id: { not: existingEvidence.id } } : {}) },
+    data: { status: 'REPLACED', replacedAt },
   });
+
+  if (existingEvidence) {
+    return tx.registrationEvidence.update({
+      where: { id: existingEvidence.id },
+      data: {
+        originalFileName: parsed.fileName,
+        mimeType: parsed.mimeType,
+        sizeBytes: parsed.sizeBytes,
+        sha256: parsed.sha256,
+        content: parsed.buffer,
+        status: 'ACTIVE',
+        replacedAt: null,
+      },
+    });
+  }
 
   return tx.registrationEvidence.create({
     data: {

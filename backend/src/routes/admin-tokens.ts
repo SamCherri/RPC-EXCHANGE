@@ -158,7 +158,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
       const normalizedFounderEmail = body.founderEmail?.trim().toLowerCase();
       const founderRef = body.founderRef?.trim();
       const founder = founderRef
-        ? await prisma.user.findFirst({ where: { OR: [{ id: founderRef }, { discord: founderRef.replace(/^@+/, '').toLowerCase() }, { gamePhone: founderRef }] } })
+        ? await prisma.user.findFirst({ where: { OR: [{ id: founderRef }, { discord: founderRef.replace(/^@+/, '').toLowerCase() }, { gamePhone: founderRef }, { email: founderRef.toLowerCase() }] } })
         : normalizedFounderEmail
           ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
           : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
@@ -280,7 +280,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
       const normalizedFounderEmail = body.founderEmail?.trim().toLowerCase();
       const founderRef = body.founderRef?.trim();
       const nextOwner = founderRef
-        ? await prisma.user.findFirst({ where: { OR: [{ id: founderRef }, { discord: founderRef.replace(/^@+/, '').toLowerCase() }, { gamePhone: founderRef }] } })
+        ? await prisma.user.findFirst({ where: { OR: [{ id: founderRef }, { discord: founderRef.replace(/^@+/, '').toLowerCase() }, { gamePhone: founderRef }, { email: founderRef.toLowerCase() }] } })
         : normalizedFounderEmail
           ? await prisma.user.findUnique({ where: { email: normalizedFounderEmail } })
           : (body.founderUserId ? await prisma.user.findUnique({ where: { id: body.founderUserId } }) : null);
@@ -292,7 +292,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
 
       if (!company) return reply.code(404).send({ message: 'Mercado não encontrado.' });
       if (!ownerRole) return reply.code(400).send({ message: 'Role BUSINESS_OWNER não encontrada.' });
-      if (!nextOwner) return reply.code(404).send({ message: 'Novo dono não encontrado pelo e-mail informado.' });
+      if (!nextOwner) return reply.code(404).send({ message: 'Novo dono não encontrado pelo Discord, telefone, ID ou e-mail informado.' });
 
       await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.company.update({ where: { id }, data: { founderUserId: nextOwner.id } });

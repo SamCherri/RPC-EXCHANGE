@@ -13,6 +13,7 @@ if (!process.env.TEST_DATABASE_URL) {
 }
 
 run([
+  'tests/registration-approval-review.test.ts',
   'tests/critical-economic-security.test.ts',
   'tests/security-production.test.ts',
   'tests/rpc-market-simulation.test.ts',

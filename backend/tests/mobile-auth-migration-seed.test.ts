@@ -34,3 +34,12 @@ test('seed reutiliza admin, demo e corretor por discord/e-mail e garante wallet 
   assert.match(seed, /legacyEmails: \[demoEmailLegacy\]/);
   assert.match(seed, /legacyEmails: \['corretor@bolsavirtual\.local'\]/);
 });
+
+
+test('frontend envia founderRef na troca de dono e mantém founderEmail legado no payload', async () => {
+  const panel = await readFile(new URL('../../frontend/src/pages/AdminTokensPanel.tsx', import.meta.url), 'utf8');
+  assert.match(panel, /fields=\{modalState\.type === 'owner' \? \[\{ name: 'founderRef'/);
+  assert.match(panel, /const founderRef = values\.founderRef\?\.trim\(\) \?\? ''/);
+  assert.match(panel, /JSON\.stringify\(ownerPayload\)/);
+  assert.doesNotMatch(panel, /founderEmail: values\.founderEmail/);
+});
