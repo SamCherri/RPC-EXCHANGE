@@ -75,7 +75,7 @@ export function BrokerDashboard() {
     setIsSubmitting(true);
 
     try {
-      await api('/broker/transfer-to-user', { method: 'POST', body: JSON.stringify(userRef.includes('@') ? { userEmail: userRef, amount, reason } : { userRef, amount, reason }) });
+      await api('/broker/transfer-to-user', { method: 'POST', body: JSON.stringify({ userRef, amount, reason }) });
       setUserRef('');
       setAmount('');
       setReason('');
@@ -107,7 +107,7 @@ export function BrokerDashboard() {
       <p className="info-text">Deposite crédito R$ para o jogador dentro do RP.</p>
       <p className="info-text">Limites não configurados.</p>
       <form onSubmit={submitTransfer} className="form-grid">
-        <input value={userRef} onChange={(e) => setUserRef(e.target.value)} placeholder="Conta RP, personagem, nome ou email técnico" required />
+        <input value={userRef} onChange={(e) => setUserRef(e.target.value)} placeholder="Discord do jogador (com ou sem @)" required />
         <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Valor em R$" required />
         <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Observação" required />
         <button className="button-primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Processando...' : 'Depositar R$ para usuário'}</button>

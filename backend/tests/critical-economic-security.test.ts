@@ -423,6 +423,109 @@ test('operações sensíveis bloqueiam referência ambígua e preservam id/email
   assert.equal(idStillWorks.statusCode, 201, idStillWorks.body);
 });
 
+
+test('fluxos financeiros resolvem destinatários por Discord normalizado', async () => {
+  await resetDb();
+  const rSuper = await mkRole('SUPER_ADMIN');
+  const rAdmin = await mkRole('ADMIN');
+  const rBroker = await mkRole('VIRTUAL_BROKER');
+  const rUser = await mkRole('USER');
+
+  const superAdmin = await mkUser('super-discord@test.local', 'Super Discord');
+  const playerA = await mkUser('player-discord-a@test.local', 'Nome Repetido');
+  const playerB = await mkUser('player-discord-b@test.local', 'Nome Repetido');
+  const brokerSender = await mkUser('broker-sender-discord@test.local', 'Broker Sender Discord');
+  const brokerTarget = await mkUser('broker-target-discord@test.local', 'Broker Target Discord');
+  const adminTarget = await mkUser('admin-target-discord@test.local', 'Admin Target Discord');
+
+  await prisma.userRole.createMany({ data: [
+    { userId: superAdmin.id, roleId: rSuper.id },
+    { userId: playerA.id, roleId: rUser.id },
+    { userId: playerB.id, roleId: rUser.id },
+    { userId: brokerSender.id, roleId: rBroker.id },
+    { userId: brokerTarget.id, roleId: rBroker.id },
+    { userId: adminTarget.id, roleId: rAdmin.id },
+  ] });
+
+  await prisma.user.update({ where: { id: playerA.id }, data: { discordId: 'player-alpha' } });
+  await prisma.user.update({ where: { id: playerB.id }, data: { discordId: 'player-beta' } });
+  await prisma.user.update({ where: { id: brokerSender.id }, data: { discordId: 'broker-sender' } });
+  await prisma.user.update({ where: { id: brokerTarget.id }, data: { discordId: 'broker-target' } });
+  await prisma.user.update({ where: { id: adminTarget.id }, data: { discordId: 'admin-target' } });
+
+  await prisma.treasuryAccount.create({ data: { balance: 1000 } });
+  await prisma.platformAccount.create({ data: { balance: 500, totalReceivedFees: 500, totalWithdrawn: 0 } });
+  await prisma.brokerAccount.create({ data: { userId: brokerSender.id, available: 200, receivedTotal: 200 } });
+
+  const superToken = await token(superAdmin.id, ['SUPER_ADMIN']);
+  const brokerToken = await token(brokerSender.id, ['VIRTUAL_BROKER']);
+
+  const ambiguousName = await app.inject({ method: 'POST', url: '/api/admin/treasury/transfer-to-user', headers: { authorization: `Bearer ${superToken}` }, payload: { userRef: 'Nome Repetido', amount: 10, reason: 'nome ambíguo', adminPassword: ADMIN_PASSWORD } });
+  assert.equal(ambiguousName.statusCode, 400, ambiguousName.body);
+  assert.match(ambiguousName.body, /referência ambígua/i);
+
+  const treasuryToPlayer = await app.inject({ method: 'POST', url: '/api/admin/treasury/transfer-to-user', headers: { authorization: `Bearer ${superToken}` }, payload: { userRef: '@PLAYER-BETA', amount: 70, reason: 'depósito por discord', adminPassword: ADMIN_PASSWORD } });
+  assert.equal(treasuryToPlayer.statusCode, 201, treasuryToPlayer.body);
+
+  const playerAWallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: playerA.id } });
+  const playerBWalletAfterTreasury = await prisma.wallet.findUniqueOrThrow({ where: { userId: playerB.id } });
+  assert.equal(Number(playerAWallet.fiatAvailableBalance), 0);
+  assert.equal(Number(playerBWalletAfterTreasury.fiatAvailableBalance), 70);
+
+  const treasuryToBroker = await app.inject({ method: 'POST', url: '/api/admin/treasury/transfer-to-broker', headers: { authorization: `Bearer ${superToken}` }, payload: { brokerRef: 'BROKER-TARGET', amount: 80, reason: 'envio ao corretor por discord' } });
+  assert.equal(treasuryToBroker.statusCode, 201, treasuryToBroker.body);
+  const brokerTargetAccount = await prisma.brokerAccount.findUniqueOrThrow({ where: { userId: brokerTarget.id } });
+  assert.equal(Number(brokerTargetAccount.available), 80);
+  assert.equal(Number(brokerTargetAccount.receivedTotal), 80);
+
+  const brokerToPlayer = await app.inject({ method: 'POST', url: '/api/broker/transfer-to-user', headers: { authorization: `Bearer ${brokerToken}` }, payload: { userRef: '@PLAYER-ALPHA', amount: 25, reason: 'corretor por discord' } });
+  assert.equal(brokerToPlayer.statusCode, 201, brokerToPlayer.body);
+  const playerAWalletAfterBroker = await prisma.wallet.findUniqueOrThrow({ where: { userId: playerA.id } });
+  const brokerSenderAccount = await prisma.brokerAccount.findUniqueOrThrow({ where: { userId: brokerSender.id } });
+  assert.equal(Number(playerAWalletAfterBroker.fiatAvailableBalance), 25);
+  assert.equal(Number(brokerSenderAccount.available), 175);
+
+  const platformWithdraw = await app.inject({ method: 'POST', url: '/api/admin/platform-account/withdraw-to-admin', headers: { authorization: `Bearer ${superToken}` }, payload: { adminRef: '@ADMIN-TARGET', amount: 40, reason: 'retirada por discord', adminPassword: ADMIN_PASSWORD } });
+  assert.equal(platformWithdraw.statusCode, 201, platformWithdraw.body);
+  const adminWallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: adminTarget.id } });
+  const platformAccount = await prisma.platformAccount.findFirstOrThrow();
+  assert.equal(Number(adminWallet.fiatAvailableBalance), 40);
+  assert.equal(Number(platformAccount.balance), 460);
+  assert.equal(Number(platformAccount.totalWithdrawn), 40);
+
+  const countsBeforeInvalid = {
+    transactions: await prisma.transaction.count(),
+    transfers: await prisma.coinTransfer.count(),
+    logs: await prisma.adminLog.count(),
+  };
+  const treasuryBeforeInvalid = await prisma.treasuryAccount.findFirstOrThrow();
+  const invalidDiscord = await app.inject({ method: 'POST', url: '/api/admin/treasury/transfer-to-user', headers: { authorization: `Bearer ${superToken}` }, payload: { userRef: '@discord-inexistente', amount: 99, reason: 'discord inexistente', adminPassword: ADMIN_PASSWORD } });
+  assert.equal(invalidDiscord.statusCode, 400, invalidDiscord.body);
+  assert.match(invalidDiscord.body, /usuário não encontrado/i);
+  const treasuryAfterInvalid = await prisma.treasuryAccount.findFirstOrThrow();
+  assert.equal(String(treasuryAfterInvalid.balance), String(treasuryBeforeInvalid.balance));
+  assert.equal(await prisma.transaction.count(), countsBeforeInvalid.transactions);
+  assert.equal(await prisma.coinTransfer.count(), countsBeforeInvalid.transfers);
+  assert.equal(await prisma.adminLog.count(), countsBeforeInvalid.logs);
+
+  const adjustmentTransfers = await prisma.coinTransfer.findMany({ where: { type: 'ADJUSTMENT' } });
+  const brokerTransfers = await prisma.coinTransfer.findMany({ where: { type: 'TREASURY_TO_BROKER' } });
+  const brokerUserTransfers = await prisma.coinTransfer.findMany({ where: { type: 'BROKER_TO_USER' } });
+  const transactionTypes = await prisma.transaction.findMany({ select: { type: true } });
+  const adminLogActions = await prisma.adminLog.findMany({ select: { action: true } });
+
+  assert.equal(adjustmentTransfers.length, 1);
+  assert.equal(brokerTransfers.length, 1);
+  assert.equal(brokerUserTransfers.length, 1);
+  assert.ok(transactionTypes.some((item) => item.type === 'ADMIN_TREASURY_FIAT_TRANSFER_IN'));
+  assert.ok(transactionTypes.some((item) => item.type === 'BROKER_FIAT_TRANSFER_IN'));
+  assert.ok(transactionTypes.some((item) => item.type === 'PLATFORM_PROFIT_WITHDRAWAL_IN'));
+  assert.ok(adminLogActions.some((item) => item.action === 'TREASURY_TRANSFER_TO_USER'));
+  assert.ok(adminLogActions.some((item) => item.action === 'TREASURY_TRANSFER_TO_BROKER'));
+  assert.ok(adminLogActions.some((item) => item.action === 'BROKER_TRANSFER_TO_USER'));
+  assert.ok(adminLogActions.some((item) => item.action === 'PLATFORM_PROFIT_WITHDRAWAL'));
+});
+
 test('super admin retira lucro da Exchange para carteira administrativa', async () => {
   await resetDb();
   const rSuper = await mkRole('SUPER_ADMIN');

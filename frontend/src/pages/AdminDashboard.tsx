@@ -338,18 +338,18 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
           )}
 
           <h3 className="nested-card">Enviar R$ para corretor</h3>
-          <p className="info-text">Para evitar erro, prefira usar Conta RP ou email técnico quando houver nomes parecidos.</p>
+          <p className="info-text">Para evitar erro, prefira usar o Discord exato quando houver nomes parecidos.</p>
           <form onSubmit={submitBrokerTransfer} className="form-grid">
-            <input value={brokerRef} onChange={(e) => setBrokerRef(e.target.value)} placeholder="Conta RP, personagem, nome ou email técnico do corretor" required />
+            <input value={brokerRef} onChange={(e) => setBrokerRef(e.target.value)} placeholder="Discord do corretor (com ou sem @)" required />
             <input value={brokerAmount} onChange={(e) => setBrokerAmount(e.target.value)} placeholder="Valor em R$" required />
             <input value={brokerReason} onChange={(e) => setBrokerReason(e.target.value)} placeholder="Observação" required />
             <button className="button-primary" type="submit" disabled={Boolean(pendingAdminAction) || adminModalLoading}>Enviar R$ ao corretor</button>
           </form>
 
           <h3 className="nested-card">Depositar R$ em jogador</h3>
-          <p className="info-text">Para evitar erro, prefira usar Conta RP ou email técnico quando houver nomes parecidos.</p>
+          <p className="info-text">Para evitar erro, prefira usar o Discord exato quando houver nomes parecidos.</p>
           <form onSubmit={submitUserDeposit} className="form-grid">
-            <input value={userDepositRef} onChange={(e) => setUserDepositRef(e.target.value)} placeholder="Conta RP, personagem, nome ou email técnico do jogador" required />
+            <input value={userDepositRef} onChange={(e) => setUserDepositRef(e.target.value)} placeholder="Discord do jogador (com ou sem @)" required />
             <input value={userDepositAmount} onChange={(e) => setUserDepositAmount(e.target.value)} placeholder="Valor em R$" required />
             <input value={userDepositReason} onChange={(e) => setUserDepositReason(e.target.value)} placeholder="Motivo" required />
             <button className="button-primary" type="submit" disabled={Boolean(pendingAdminAction) || adminModalLoading}>Depositar R$ no jogador</button>
@@ -398,12 +398,12 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
           {canWithdrawPlatformProfit && (
             <>
               <h3 className="nested-card">Retirar lucro da Exchange</h3>
-              <p className="info-text">Para evitar erro, prefira usar Conta RP ou email técnico quando houver nomes parecidos.</p>
+              <p className="info-text">Para evitar erro, prefira usar o Discord exato quando houver nomes parecidos.</p>
               <form onSubmit={submitPlatformWithdraw} className="form-grid">
                 <input
                   value={platformWithdrawRef}
                   onChange={(e) => setPlatformWithdrawRef(e.target.value)}
-                  placeholder="Conta RP, personagem, nome ou email técnico do administrador"
+                  placeholder="Discord do administrador (com ou sem @)"
                   
                   required
                 />
