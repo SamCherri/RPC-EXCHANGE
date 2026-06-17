@@ -1,22 +1,34 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
-import { validatePublicNameAllowed, validateRpAccountUnique } from './content-moderation-service.js';
+import { validatePublicNameAllowed } from './content-moderation-service.js';
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
-export async function registerUser(name: string, characterName: string, bankAccountNumber: string, discordId: string, characterPhone: string, email: string, password: string, proof: { mimeType: string; fileName?: string; data: string; checksum: string }) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const exists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (exists) {
-    throw new Error('E-mail já cadastrado.');
-  }
+function normalizeDiscord(discordId: string) {
+  return discordId.trim();
+}
+
+function buildInternalEmail(discordId: string) {
+  const safeDiscord = normalizeDiscord(discordId)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  return `${safeDiscord || 'discord'}@discord.rpc-exchange.local`;
+}
+
+export async function registerUser(name: string, characterName: string, discordId: string, characterPhone: string, password: string, proof: { mimeType: string; fileName?: string; data: string; checksum: string }) {
+  const normalizedDiscord = normalizeDiscord(discordId);
 
   await validatePublicNameAllowed(name, 'user');
   await validatePublicNameAllowed(characterName, 'character');
-  await validateRpAccountUnique(bankAccountNumber);
 
-  const discordExists = await prisma.user.findFirst({ where: { discordId: { equals: discordId.trim(), mode: 'insensitive' } }, select: { id: true } });
+  const discordExists = await prisma.user.findFirst({ where: { discordId: { equals: normalizedDiscord, mode: 'insensitive' } }, select: { id: true } });
   if (discordExists) throw new Error('Discord já cadastrado.');
+
+  const normalizedEmail = buildInternalEmail(normalizedDiscord);
+  const emailExists = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+  if (emailExists) throw new Error('Discord já cadastrado.');
 
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -31,8 +43,8 @@ export async function registerUser(name: string, characterName: string, bankAcco
       email: normalizedEmail,
       passwordHash,
       characterName,
-      bankAccountNumber,
-      discordId: discordId.trim(),
+      bankAccountNumber: null,
+      discordId: normalizedDiscord,
       characterPhone: characterPhone.trim(),
       approvalStatus: 'PENDING',
       registrationProof: { create: proof },
@@ -45,10 +57,12 @@ export async function registerUser(name: string, characterName: string, bankAcco
   return user;
 }
 
-export async function loginUser(email: string, password: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
+export async function loginUser(discordId: string, password: string) {
+  const identifier = discordId.trim();
+  const user = await prisma.user.findFirst({
+    where: identifier.includes('@')
+      ? { OR: [{ discordId: { equals: identifier, mode: 'insensitive' } }, { email: { equals: identifier.toLowerCase(), mode: 'insensitive' } }] }
+      : { discordId: { equals: identifier, mode: 'insensitive' } },
     include: { roles: { include: { role: true } }, wallet: true },
   });
 

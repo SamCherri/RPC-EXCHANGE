@@ -8,7 +8,7 @@ type LoginPageProps = {
 };
 
 export function LoginPage({ onSuccess, onSwitchRegister }: LoginPageProps) {
-  const [email, setEmail] = useState('');
+  const [discordId, setDiscordId] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +19,7 @@ export function LoginPage({ onSuccess, onSwitchRegister }: LoginPageProps) {
     try {
       const result = await api<{ token: string }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ discordId, password }),
       });
       localStorage.setItem('token', result.token);
       setMessage('Login realizado com sucesso.');
@@ -41,12 +41,12 @@ export function LoginPage({ onSuccess, onSwitchRegister }: LoginPageProps) {
 
       <form onSubmit={handleSubmit} className="auth-form">
         <label>
-          <span className="label-text">E-mail</span>
+          <span className="label-text">Discord</span>
           <input 
-            placeholder="seu.email@exemplo.com" 
-            type="email" 
-            value={email} 
-            onChange={(event) => setEmail(event.target.value)} 
+            placeholder="Seu usuário ou ID do Discord" 
+            type="text" 
+            value={discordId} 
+            onChange={(event) => setDiscordId(event.target.value)} 
             disabled={isLoading}
             required 
           />

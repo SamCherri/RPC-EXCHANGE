@@ -61,7 +61,7 @@ async function mkUser(email: string, name = 'User') {
 }
 
 async function grantTestFinancialPermissions(userId: string) {
-  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
+  await prisma.userFinancialPermission.createMany({ data: (['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const).map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
 }
 
 async function mkRole(key: string) {
@@ -715,30 +715,26 @@ test('mercado RPC/R$ mantém singleton, cotação e integridade econômica', asy
   assert.ok(Number(platform.totalReceivedFees) > 0);
 });
 
-test('cadastro salva characterName e bankAccountNumber e /auth/me retorna campos', async () => {
+test('cadastro salva characterName e Discord e /auth/me retorna campos', async () => {
   await resetDb();
   await mkRole('USER');
 
-  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', bankAccountNumber: 'RP-001', discordId: 'discord-register-1', characterPhone: '555-0001', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'register@test.local', password: '12345678' } });
+  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', discordId: 'discord-register-1', characterPhone: '555-0001', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, password: '12345678' } });
   assert.equal(register.statusCode, 201, register.body);
   const payload = register.json();
   assert.equal(payload.characterName, 'Kenshin');
-  assert.equal(payload.bankAccountNumber, 'RP-001');
 
-  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'register@test.local', password: '12345678' } });
+  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discordId: 'discord-register-1', password: '12345678' } });
   assert.equal(login.statusCode, 200, login.body);
   const tokenValue = login.json().token;
 
   const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${tokenValue}` } });
   assert.equal(me.statusCode, 200, me.body);
   assert.equal(me.json().user.characterName, 'Kenshin');
-  assert.equal(me.json().user.bankAccountNumber, 'RP-001');
 
-  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', bankAccountNumber: 'RP-002', discordId: 'discord-invalid-char', characterPhone: '555-0002', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'invalid-char@test.local', password: '12345678' } });
+  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', discordId: 'discord-invalid-char', characterPhone: '555-0002', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, password: '12345678' } });
   assert.equal(invalidCharacter.statusCode, 400);
 
-  const invalidBank = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Three', characterName: 'ValidName', bankAccountNumber: '12', discordId: 'discord-invalid-bank', characterPhone: '555-0003', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'invalid-bank@test.local', password: '12345678' } });
-  assert.equal(invalidBank.statusCode, 400);
 });
 
 test('permissões e regras de liquidez RPC/R$ com AdminLog', async () => {
@@ -790,246 +786,6 @@ test('permissões e regras de liquidez RPC/R$ com AdminLog', async () => {
   const logs = await prisma.adminLog.findMany({ where: { action: { in: ['RPC_MARKET_LIQUIDITY_INJECT', 'RPC_MARKET_LIQUIDITY_WITHDRAW'] } } });
   assert.ok(logs.length >= 2);
   assert.ok(logs.every((log) => !!log.previous && !!log.current));
-});
-
-test('modo teste global bloqueia rotas reais, mantém isolamento e registra logs administrativos', async () => {
-  await resetDb();
-
-  const rSuper = await mkRole('SUPER_ADMIN');
-  const rAdmin = await mkRole('ADMIN');
-  const rUser = await mkRole('USER');
-
-  const superAdmin = await mkUser('tm-super@test.local');
-  const admin = await mkUser('tm-admin@test.local');
-  const user = await mkUser('tm-user@test.local');
-
-  await prisma.userRole.createMany({ data: [
-    { userId: superAdmin.id, roleId: rSuper.id },
-    { userId: admin.id, roleId: rAdmin.id },
-    { userId: user.id, roleId: rUser.id },
-  ] });
-
-  const superTk = await token(superAdmin.id, ['SUPER_ADMIN']);
-  const adminTk = await token(admin.id, ['ADMIN']);
-  const userTk = await token(user.id, ['USER']);
-
-  const modeStart = await app.inject({ method: 'GET', url: '/api/system-mode' });
-  assert.equal(modeStart.statusCode, 200);
-  assert.equal(modeStart.json().mode, 'NORMAL');
-
-  assert.equal((await app.inject({ method: 'POST', url: '/api/admin/system-mode/test/enable', headers: { authorization: `Bearer ${userTk}` }, payload: { reason: 'tentativa sem permissão user' } })).statusCode, 403);
-  assert.equal((await app.inject({ method: 'POST', url: '/api/admin/system-mode/test/enable', headers: { authorization: `Bearer ${adminTk}` }, payload: { reason: 'tentativa sem permissão admin' } })).statusCode, 403);
-
-  const enable = await app.inject({ method: 'POST', url: '/api/admin/system-mode/test/enable', headers: { authorization: `Bearer ${superTk}` }, payload: { reason: 'ativando modo teste global' } });
-  assert.equal(enable.statusCode, 200, enable.body);
-
-  const blockedNoToken = await app.inject({ method: 'GET', url: '/api/rpc-market' });
-  assert.equal(blockedNoToken.statusCode, 403);
-  const blockedUser = await app.inject({ method: 'GET', url: '/api/rpc-market', headers: { authorization: `Bearer ${userTk}` } });
-  assert.equal(blockedUser.statusCode, 403);
-
-  const testMe = await app.inject({ method: 'GET', url: '/api/test-mode/me', headers: { authorization: `Bearer ${userTk}` } });
-  assert.equal(testMe.statusCode, 200, testMe.body);
-  assert.equal(Number(testMe.json().fiatBalance), 10000);
-
-  const reportInTest = await app.inject({ method: 'POST', url: '/api/test-mode/reports', headers: { authorization: `Bearer ${userTk}` }, payload: { type: 'BUG', location: 'Tela', description: 'Teste de report' } });
-  assert.equal(reportInTest.statusCode, 201, reportInTest.body);
-
-  const buy = await app.inject({ method: 'POST', url: '/api/test-mode/buy', headers: { authorization: `Bearer ${userTk}` }, payload: { fiatAmount: 100 } });
-  assert.equal(buy.statusCode, 200, buy.body);
-  const sell = await app.inject({ method: 'POST', url: '/api/test-mode/sell', headers: { authorization: `Bearer ${userTk}` }, payload: { rpcAmount: 10 } });
-  assert.equal(sell.statusCode, 200, sell.body);
-
-  const realWallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: user.id } });
-  const testWallet = await prisma.testModeWallet.findUniqueOrThrow({ where: { userId: user.id } });
-  assert.equal(Number(realWallet.fiatAvailableBalance), 0);
-  assert.ok(Number(testWallet.fiatBalance) >= 0);
-
-  assert.equal(await prisma.rpcExchangeTrade.count({ where: { userId: user.id } }), 0);
-  assert.equal(await prisma.rpcMarketState.count(), 0);
-
-  const resetUser = await app.inject({ method: 'POST', url: '/api/admin/test-mode/reset-user', headers: { authorization: `Bearer ${superTk}` }, payload: { userId: user.id, reason: 'reset de carteira de teste' } });
-  assert.equal(resetUser.statusCode, 200, resetUser.body);
-
-  const clearWrong = await app.inject({ method: 'POST', url: '/api/admin/test-mode/clear', headers: { authorization: `Bearer ${superTk}` }, payload: { reason: 'limpeza errada', confirmation: 'ERRADO' } });
-  assert.equal(clearWrong.statusCode, 400);
-  const clearOk = await app.inject({ method: 'POST', url: '/api/admin/test-mode/clear', headers: { authorization: `Bearer ${superTk}` }, payload: { reason: 'limpeza correta de teste', confirmation: 'LIMPAR MODO TESTE' } });
-  assert.equal(clearOk.statusCode, 200, clearOk.body);
-
-  const disable = await app.inject({ method: 'POST', url: '/api/admin/system-mode/normal/enable', headers: { authorization: `Bearer ${superTk}` }, payload: { reason: 'encerrando modo teste global' } });
-  assert.equal(disable.statusCode, 200, disable.body);
-
-  const reportInNormal = await app.inject({ method: 'POST', url: '/api/test-mode/reports', headers: { authorization: `Bearer ${userTk}` }, payload: { type: 'BUG', location: 'Tela', description: 'Teste de report' } });
-  assert.equal(reportInNormal.statusCode, 403);
-
-  const logs = await prisma.adminLog.findMany({ where: { action: { in: ['SYSTEM_MODE_ENABLE_TEST', 'SYSTEM_MODE_ENABLE_NORMAL', 'TEST_MODE_RESET_USER', 'TEST_MODE_CLEAR'] } } });
-  assert.ok(logs.length >= 4);
-});
-
-test('modo teste global bloqueia /api/me e /api/rpc-market para USER e permite /api/test-mode/me', async () => {
-  await resetDb();
-  const roleUser = await mkRole('USER');
-  const user = await mkUser('testmode-user@test.local');
-  await prisma.userRole.create({ data: { userId: user.id, roleId: roleUser.id } });
-  await prisma.systemModeConfig.upsert({ where: { id: 'SYSTEM_MODE_MAIN' }, update: { mode: 'TEST' }, create: { id: 'SYSTEM_MODE_MAIN', mode: 'TEST' } });
-
-  const userToken = await token(user.id, ['USER']);
-
-  const meBlocked = await app.inject({ method: 'GET', url: '/api/me', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(meBlocked.statusCode, 403, meBlocked.body);
-
-  const marketBlocked = await app.inject({ method: 'GET', url: '/api/rpc-market', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(marketBlocked.statusCode, 403, marketBlocked.body);
-
-  const withoutTokenBlocked = await app.inject({ method: 'GET', url: '/api/market/orders' });
-  assert.equal(withoutTokenBlocked.statusCode, 403, withoutTokenBlocked.body);
-
-  const testModeMeAllowed = await app.inject({ method: 'GET', url: '/api/test-mode/me', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(testModeMeAllowed.statusCode, 200, testModeMeAllowed.body);
-});
-
-test('modo normal bloqueia endpoint test-mode/me', async () => {
-  await resetDb();
-  const roleUser = await mkRole('USER');
-  const user = await mkUser('normal-user@test.local');
-  await prisma.userRole.create({ data: { userId: user.id, roleId: roleUser.id } });
-  await prisma.systemModeConfig.upsert({ where: { id: 'SYSTEM_MODE_MAIN' }, update: { mode: 'NORMAL' }, create: { id: 'SYSTEM_MODE_MAIN', mode: 'NORMAL' } });
-  const userToken = await token(user.id, ['USER']);
-  const response = await app.inject({ method: 'GET', url: '/api/test-mode/me', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(response.statusCode, 403, response.body);
-});
-
-
-test('modo teste: preço, leaderboard, guardas e report types', async () => {
-  await resetDb();
-  const rUser = await mkRole('USER');
-  const user = await mkUser('tmode@test.local', 'TMode');
-  await prisma.userRole.create({ data: { userId: user.id, roleId: rUser.id } });
-
-  const superAdminRole = await mkRole('SUPER_ADMIN');
-  const admin = await mkUser('admin-tmode@test.local', 'Admin');
-  await prisma.userRole.create({ data: { userId: admin.id, roleId: superAdminRole.id } });
-
-  const adminToken = await token(admin.id, ['SUPER_ADMIN']);
-  const userToken = await token(user.id, ['USER']);
-
-  const setTest = await app.inject({ method: 'POST', url: '/api/admin/system-mode/test/enable', headers: { authorization: `Bearer ${adminToken}` }, payload: { reason: 'Ativando modo teste para teste crítico' } });
-  assert.equal(setTest.statusCode, 200, setTest.body);
-
-  const deniedMe = await app.inject({ method: 'GET', url: '/api/me', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(deniedMe.statusCode, 403, deniedMe.body);
-
-  const deniedMarket = await app.inject({ method: 'GET', url: '/api/rpc-market', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(deniedMarket.statusCode, 403, deniedMarket.body);
-
-  const testMe = await app.inject({ method: 'GET', url: '/api/test-mode/me', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(testMe.statusCode, 200, testMe.body);
-
-  const beforeMarket = await app.inject({ method: 'GET', url: '/api/test-mode/market', headers: { authorization: `Bearer ${userToken}` } });
-  const beforePrice = Number(beforeMarket.json().currentPrice);
-
-  const buy = await app.inject({ method: 'POST', url: '/api/test-mode/buy', headers: { authorization: `Bearer ${userToken}` }, payload: { fiatAmount: 100 } });
-  assert.equal(buy.statusCode, 200, buy.body);
-  const afterBuyMarket = await app.inject({ method: 'GET', url: '/api/test-mode/market', headers: { authorization: `Bearer ${userToken}` } });
-  const afterBuyPrice = Number(afterBuyMarket.json().currentPrice);
-  assert.ok(afterBuyPrice > beforePrice);
-
-  const sell = await app.inject({ method: 'POST', url: '/api/test-mode/sell', headers: { authorization: `Bearer ${userToken}` }, payload: { rpcAmount: 1 } });
-  assert.equal(sell.statusCode, 200, sell.body);
-  const afterSellMarket = await app.inject({ method: 'GET', url: '/api/test-mode/market', headers: { authorization: `Bearer ${userToken}` } });
-  const afterSellPrice = Number(afterSellMarket.json().currentPrice);
-  assert.ok(afterSellPrice < afterBuyPrice);
-
-  const leaderboard = await app.inject({ method: 'GET', url: '/api/test-mode/leaderboard', headers: { authorization: `Bearer ${userToken}` } });
-  assert.equal(leaderboard.statusCode, 200, leaderboard.body);
-  const rows = leaderboard.json().leaderboard as Array<{ userId: string; estimatedTotalFiat: string }>;
-  assert.ok(rows.some((row) => row.userId === user.id));
-  const sorted = [...rows].sort((a, b) => Number(b.estimatedTotalFiat) - Number(a.estimatedTotalFiat));
-  assert.deepEqual(rows.map((r) => r.userId), sorted.map((r) => r.userId));
-
-  const reportTypes = ['BUG','VISUAL_ERROR','BALANCE_ERROR','CHEAT_SUSPECTED','SUGGESTION','OTHER'] as const;
-  for (const [idx, type] of reportTypes.entries()) {
-    const reportUser = await mkUser(`tmode-report-${idx}@test.local`, `TMode Report ${idx}`);
-    await prisma.userRole.create({ data: { userId: reportUser.id, roleId: rUser.id } });
-    const reportToken = await token(reportUser.id, ['USER']);
-    const report = await app.inject({ method: 'POST', url: '/api/test-mode/reports', headers: { authorization: `Bearer ${reportToken}` }, payload: { type, location: 'Tela', description: 'Teste' } });
-    assert.equal(report.statusCode, 201, report.body);
-  }
-
-  const setNormal = await app.inject({ method: 'POST', url: '/api/admin/system-mode/normal/enable', headers: { authorization: `Bearer ${adminToken}` }, payload: { reason: 'Voltando para modo normal no teste crítico' } });
-  assert.equal(setNormal.statusCode, 200, setNormal.body);
-
-  const reportBlockedInNormal = await app.inject({ method: 'POST', url: '/api/test-mode/reports', headers: { authorization: `Bearer ${userToken}` }, payload: { type: 'BUG', location: 'Tela', description: 'Teste em normal' } });
-  assert.equal(reportBlockedInNormal.statusCode, 403, reportBlockedInNormal.body);
-});
-
-test('bot tick do modo teste só opera em TEST e não altera economia real', async () => {
-  await resetDb();
-
-  const rUser = await mkRole('USER');
-  const user = await mkUser('testmode-bot@test.local', 'Test Bot User');
-  await prisma.userRole.create({ data: { userId: user.id, roleId: rUser.id } });
-  await prisma.platformAccount.create({ data: {} });
-
-  const userToken = await token(user.id, ['USER']);
-  await prisma.systemModeConfig.upsert({
-    where: { id: 'SYSTEM_MODE_MAIN' },
-    update: { mode: 'NORMAL' },
-    create: { id: 'SYSTEM_MODE_MAIN', mode: 'NORMAL' },
-  });
-
-  const normalMode = await app.inject({
-    method: 'POST',
-    url: '/api/test-mode/bot-tick',
-    headers: { authorization: `Bearer ${userToken}` },
-  });
-  assert.equal(normalMode.statusCode, 403, normalMode.body);
-
-  const superAdminRole = await mkRole('SUPER_ADMIN');
-  const admin = await mkUser('testmode-admin@test.local', 'Test Admin');
-  await prisma.userRole.create({ data: { userId: admin.id, roleId: superAdminRole.id } });
-  const adminToken = await token(admin.id, ['SUPER_ADMIN']);
-
-  const setTestMode = await app.inject({
-    method: 'POST',
-    url: '/api/admin/system-mode/test/enable',
-    headers: { authorization: `Bearer ${adminToken}` },
-    payload: { reason: 'Ativando TEST para validar bot tick' },
-  });
-  assert.equal(setTestMode.statusCode, 200, setTestMode.body);
-
-  const realMarketBefore = await prisma.rpcMarketState.findFirst();
-  const realTradesBefore = await prisma.rpcExchangeTrade.count();
-  const realWalletsBefore = await prisma.wallet.count();
-  const testMarketBefore = await prisma.testModeMarketState.findUnique({ where: { id: 'TEST_MODE_MARKET_MAIN' } });
-
-  const tick = await app.inject({
-    method: 'POST',
-    url: '/api/test-mode/bot-tick',
-    headers: { authorization: `Bearer ${userToken}` },
-  });
-  assert.equal(tick.statusCode, 200, tick.body);
-  const payload = tick.json();
-  assert.ok(payload.currentPrice);
-  assert.ok(payload.skipped === true || payload.side === 'BUY' || payload.side === 'SELL');
-
-  const realMarketAfter = await prisma.rpcMarketState.findFirst();
-  const realTradesAfter = await prisma.rpcExchangeTrade.count();
-  const realWalletsAfter = await prisma.wallet.count();
-  const testMarketAfter = await prisma.testModeMarketState.findUniqueOrThrow({ where: { id: 'TEST_MODE_MARKET_MAIN' } });
-
-  assert.equal(JSON.stringify(realMarketAfter), JSON.stringify(realMarketBefore));
-  assert.equal(realTradesAfter, realTradesBefore);
-  assert.equal(realWalletsAfter, realWalletsBefore);
-  assert.notEqual(String(testMarketAfter.updatedAt), String(testMarketBefore?.updatedAt ?? ''));
-
-  const setNormalMode = await app.inject({
-    method: 'POST',
-    url: '/api/admin/system-mode/normal/enable',
-    headers: { authorization: `Bearer ${adminToken}` },
-    payload: { reason: 'Voltando para NORMAL após validar bot tick' },
-  });
-  assert.equal(setNormalMode.statusCode, 200, setNormalMode.body);
 });
 
 test('ordens limite RPC/R$ travam/cancelam saldos e processam elegíveis com segurança', async () => {

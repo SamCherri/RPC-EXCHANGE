@@ -39,9 +39,8 @@ export type CurrentUserResponse = {
   user: {
     id: string;
     name: string;
-    email: string;
+    email?: string;
     characterName?: string | null;
-    bankAccountNumber?: string | null;
     discordId?: string | null;
     characterPhone?: string | null;
     approvalStatus: 'PENDING'|'NEEDS_CORRECTION'|'APPROVED'|'REJECTED';

@@ -3,7 +3,7 @@ import { api } from '../services/api';
 
 type Issue = { severity: 'CRITICAL' | 'WARNING'; code: string; title: string; description: string; entity?: string; entityId?: string; userId?: string; expected?: string; actual?: string };
 type Section = { status: 'OK' | 'WARNING' | 'CRITICAL'; issues: Issue[]; metrics: Record<string, unknown> };
-type Report = { status: 'OK' | 'WARNING' | 'CRITICAL'; summary: { totalIssues: number; criticalIssues: number; warningIssues: number }; generatedAt: string; sections: { testMode: Section; rpcMarket: Section; companyMarket: Section } };
+type Report = { status: 'OK' | 'WARNING' | 'CRITICAL'; summary: { totalIssues: number; criticalIssues: number; warningIssues: number }; generatedAt: string; sections: { rpcMarket: Section; companyMarket: Section } };
 
 export function AdminMarketHealthPanel() {
   const [data, setData] = useState<Report | null>(null);
@@ -22,7 +22,6 @@ export function AdminMarketHealthPanel() {
 
   const badge = (s: string) => s === 'CRITICAL' ? '🔴 CRÍTICO' : s === 'WARNING' ? '🟡 ALERTA' : '🟢 OK';
   const sections = data ? [
-    { key: 'testMode', title: 'Modo Teste', payload: data.sections.testMode },
     { key: 'rpcMarket', title: 'RPC/R$', payload: data.sections.rpcMarket },
     { key: 'companyMarket', title: 'Empresas/Tokens', payload: data.sections.companyMarket },
   ] : [];

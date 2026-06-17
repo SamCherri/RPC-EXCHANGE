@@ -23,6 +23,7 @@ async function seedDemoData(params: {
           data: {
             email: demoEmail,
             name: demoLegacy.name || 'Jogador Demo',
+            discordId: demoLegacy.discordId ?? 'jogador-demo',
           },
         })
       : await prisma.user.upsert({
@@ -31,6 +32,7 @@ async function seedDemoData(params: {
           create: {
             name: 'Jogador Demo',
             email: demoEmail,
+            discordId: 'jogador-demo',
             passwordHash: await bcrypt.hash('Jogador123!', 10),
             wallet: { create: {} },
           },
@@ -108,6 +110,7 @@ async function seedDemoData(params: {
     create: {
       name: 'Corretor Demo',
       email: 'corretor@rpc.exchange.local',
+      discordId: 'corretor-demo',
       passwordHash: await bcrypt.hash('Corretor123!', 10),
       wallet: { create: {} },
     },
@@ -173,10 +176,11 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: { discordId: adminLegacy?.discordId ?? 'admin-rpc' },
     create: {
       name: adminLegacy?.name ?? 'Super Admin Inicial',
       email: adminEmail,
+      discordId: adminLegacy?.discordId ?? 'admin-rpc',
       passwordHash,
       wallet: { create: {} },
     },

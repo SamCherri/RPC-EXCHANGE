@@ -76,20 +76,6 @@ test('4) bloqueia novo saque no limite de pendentes', async () => {
   assert.equal(res.statusCode, 400);
 });
 
-test('5) bloqueia novo report no limite por hora', async () => {
-  await resetDb();
-  const user = await mkUser('report-limit@test.local');
-  const tk = await token(user.id);
-  await prisma.systemModeConfig.upsert({
-    where: { id: 'SYSTEM_MODE_MAIN' },
-    update: { mode: 'TEST' },
-    create: { id: 'SYSTEM_MODE_MAIN', mode: 'TEST' },
-  });
-  await prisma.testModeReport.createMany({ data: Array.from({ length: MAX_REPORTS_PER_HOUR }, () => ({ userId: user.id, type: 'BUG', location: 'mercado', description: 'descricao', userSnapshot: '{}' })) });
-  const res = await app.inject({ method: 'POST', url: '/api/test-mode/reports', headers: { authorization: `Bearer ${tk}` }, payload: { type: 'BUG', location: 'mercado', description: 'novo report' } });
-  assert.equal(res.statusCode, 429);
-});
-
 test('6) bloqueia criação de projeto quando usuário comum está no limite diário', async () => {
   await resetDb();
   const user = await mkUser('project-limit@test.local');

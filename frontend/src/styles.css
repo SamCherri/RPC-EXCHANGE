@@ -17,9 +17,14 @@
 }
 
 * { box-sizing: border-box; }
+
+html, body, #root { width: 100%; max-width: 100%; overflow-x: clip; }
+img, svg, canvas, video { max-width: 100%; height: auto; }
+.card, .nested-card, .summary-item, form, label, input, textarea, select, button { min-width: 0; max-width: 100%; }
+pre, code, .info-text, .summary-value, .summary-item, .compact-card { overflow-wrap: anywhere; word-break: break-word; }
 body { margin: 0; min-height: 100vh; background: linear-gradient(180deg, #090f1d 0%, #111b31 50%, #0a1120 100%); }
 
-.container { width: min(100%, 980px); margin: 0 auto; padding: 12px; }
+.container { width: min(100%, 980px); max-width: 100%; margin: 0 auto; padding: 12px; overflow-x: clip; }
 .auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 
 .card {
@@ -124,7 +129,7 @@ button { cursor: pointer; font-weight: 700; }
 }
 .small-button { width: auto; min-width: 72px; }
 
-.pill-nav, .quick-actions { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 3px; }
+.pill-nav, .quick-actions { display: flex; gap: 8px; overflow-x: auto; max-width: 100%; padding-bottom: 3px; overscroll-behavior-x: contain; }
 .pill, .quick-pill {
   width: auto;
   min-width: 120px;
@@ -921,4 +926,18 @@ input[type="checkbox"] {
 @media (min-width: 768px) {
   .order-book-table { font-size: .82rem; }
   .order-book-table th { font-size: .7rem; }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 8px; }
+  .card { padding: 12px; border-radius: 14px; }
+  .public-entry-card, .auth-panel, .mobile-app-shell { width: 100%; max-width: 100%; }
+  .topbar-row, .mobile-topbar-layout, .quick-actions { min-width: 0; }
+  .trade-main-actions, .market-sheet-balance-row, .mobile-primary-actions, .home-grid-actions { grid-template-columns: 1fr; }
+  .market-stats-row, .summary-grid, .form-grid, .mobile-card-list, .company-list, .home-grid, .order-book-grid { grid-template-columns: minmax(0, 1fr); }
+  .pill, .quick-pill { min-width: 0; flex: 0 0 auto; max-width: 88vw; }
+  .admin-nav .pill { max-width: 78vw; }
+  .ui-modal, .trade-bottom-sheet, .side-drawer-panel { max-width: calc(100vw - 16px); }
+  .order-book-table { table-layout: fixed; }
+  .order-book-table th, .order-book-table td { padding-left: 6px; padding-right: 6px; overflow-wrap: anywhere; }
 }
