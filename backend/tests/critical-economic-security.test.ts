@@ -25,6 +25,7 @@ async function resetDb() {
     prisma.trade.deleteMany(),
     prisma.marketOrder.deleteMany(),
     prisma.companyOperation.deleteMany(),
+    prisma.companyCapitalFlowEntry.deleteMany(),
     prisma.companyHolding.deleteMany(),
     prisma.companyInitialOffer.deleteMany(),
     prisma.companyRevenueAccount.deleteMany(),
@@ -652,6 +653,63 @@ test('projeto desligado bloqueia rotas públicas de mercado sem apagar históric
   assert.ok(tradesCount >= 0);
 });
 
+
+test('aporte institucional RPC é atômico, rastreável e limpo pelo resetDb', async () => {
+  await resetDb();
+
+  const rUser = await mkRole('USER');
+  const founder = await mkUser('capital-founder@test.local');
+  const other = await mkUser('capital-other@test.local');
+  await prisma.userRole.createMany({ data: [
+    { userId: founder.id, roleId: rUser.id },
+    { userId: other.id, roleId: rUser.id },
+  ] });
+
+  await prisma.wallet.update({ where: { userId: founder.id }, data: { rpcAvailableBalance: 100 } });
+  await prisma.wallet.update({ where: { userId: other.id }, data: { rpcAvailableBalance: 100 } });
+
+  const company = await prisma.company.create({
+    data: {
+      name: 'Capital Audit', ticker: 'CAPA1', description: 'desc', sector: 'setor', founderUserId: founder.id, status: 'ACTIVE', totalShares: 1000,
+      circulatingShares: 100, ownerSharePercent: 40, publicOfferPercent: 60, ownerShares: 400, publicOfferShares: 600, availableOfferShares: 600,
+      initialPrice: 10, currentPrice: 10, buyFeePercent: 1, sellFeePercent: 1, fictitiousMarketCap: 10000, approvedAt: new Date(),
+      revenueAccount: { create: {} },
+    },
+  });
+
+  const founderToken = await token(founder.id, ['USER']);
+  const otherToken = await token(other.id, ['USER']);
+
+  const invalidByOwner = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${founderToken}` }, payload: { amountRpc: 10, reason: 'curto' } });
+  assert.equal(invalidByOwner.statusCode, 400, invalidByOwner.body);
+  assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: company.id } }), 0);
+  assert.equal(await prisma.transaction.count({ where: { type: 'PROJECT_RPC_CONTRIBUTION' } }), 0);
+  assert.equal(await prisma.adminLog.count({ where: { action: 'PROJECT_RPC_CONTRIBUTION' } }), 0);
+
+  const forbiddenByNonFounder = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${otherToken}` }, payload: { amountRpc: 10, reason: 'aporte institucional de teste' } });
+  assert.equal(forbiddenByNonFounder.statusCode, 403, forbiddenByNonFounder.body);
+  assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: company.id } }), 0);
+
+  const validContribution = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${founderToken}` }, payload: { amountRpc: 40, reason: 'aporte institucional rastreavel de teste' } });
+  assert.equal(validContribution.statusCode, 200, validContribution.body);
+
+  const founderWalletAfter = await prisma.wallet.findUniqueOrThrow({ where: { userId: founder.id } });
+  const revenueAfter = await prisma.companyRevenueAccount.findUniqueOrThrow({ where: { companyId: company.id } });
+  assert.equal(Number(founderWalletAfter.rpcAvailableBalance), 60);
+  assert.equal(Number(revenueAfter.balance), 40);
+  assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: company.id } }), 1);
+  assert.equal(await prisma.transaction.count({ where: { walletId: founderWalletAfter.id, type: 'PROJECT_RPC_CONTRIBUTION' } }), 1);
+  assert.equal(await prisma.adminLog.count({ where: { action: 'PROJECT_RPC_CONTRIBUTION', entity: 'CompanyRevenueAccount' } }), 1);
+  assert.equal(await prisma.trade.count({ where: { companyId: company.id } }), 0);
+  assert.equal(await prisma.marketOrder.count({ where: { companyId: company.id } }), 0);
+
+  await resetDb();
+  assert.equal(await prisma.companyCapitalFlowEntry.count(), 0);
+  assert.equal(await prisma.company.count(), 0);
+  assert.equal(await prisma.transaction.count(), 0);
+  assert.equal(await prisma.adminLog.count(), 0);
+});
+
 test('force delete de projeto de teste só para SUPER_ADMIN e apaga histórico vinculado', async () => {
   await resetDb();
 
@@ -742,6 +800,7 @@ test('force delete de projeto de teste só para SUPER_ADMIN e apaga histórico v
     marketOrders: await prisma.marketOrder.count({ where: { companyId: company.id } }),
     trades: await prisma.trade.count({ where: { companyId: company.id } }),
     feeDistributions: await prisma.feeDistribution.count({ where: { companyId: company.id } }),
+    capitalFlowEntries: await prisma.companyCapitalFlowEntry.count({ where: { companyId: company.id } }),
     revenueAccounts: await prisma.companyRevenueAccount.count({ where: { companyId: company.id } }),
     boostAccounts: await prisma.companyBoostAccount.count({ where: { companyId: company.id } }),
     boostInjections: await prisma.companyBoostInjection.count({ where: { companyId: company.id } }),
@@ -757,6 +816,7 @@ test('force delete de projeto de teste só para SUPER_ADMIN e apaga histórico v
     marketOrders: 0,
     trades: 0,
     feeDistributions: 0,
+    capitalFlowEntries: 0,
     revenueAccounts: 0,
     boostAccounts: 0,
     boostInjections: 0,

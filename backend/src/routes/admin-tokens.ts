@@ -41,19 +41,20 @@ function isSuperAdmin(roles: string[]) {
 }
 
 async function getCompanyDeleteCounts(companyId: string, tx: Prisma.TransactionClient | typeof prisma = prisma) {
-  const [holdings, operations, initialOffer, marketOrders, trades, feeDistributions, revenueAccounts, boostAccounts, boostInjections] = await Promise.all([
+  const [holdings, operations, initialOffer, marketOrders, trades, feeDistributions, capitalFlowEntries, revenueAccounts, boostAccounts, boostInjections] = await Promise.all([
     tx.companyHolding.count({ where: { companyId } }),
     tx.companyOperation.count({ where: { companyId } }),
     tx.companyInitialOffer.count({ where: { companyId } }),
     tx.marketOrder.count({ where: { companyId } }),
     tx.trade.count({ where: { companyId } }),
     tx.feeDistribution.count({ where: { companyId } }),
+    tx.companyCapitalFlowEntry.count({ where: { companyId } }),
     tx.companyRevenueAccount.count({ where: { companyId } }),
     tx.companyBoostAccount.count({ where: { companyId } }),
     tx.companyBoostInjection.count({ where: { companyId } }),
   ]);
 
-  return { holdings, operations, initialOffer, marketOrders, trades, feeDistributions, revenueAccounts, boostAccounts, boostInjections };
+  return { holdings, operations, initialOffer, marketOrders, trades, feeDistributions, capitalFlowEntries, revenueAccounts, boostAccounts, boostInjections };
 }
 
 function hasEconomicHistory(company: {
@@ -512,6 +513,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
         await tx.feeDistribution.deleteMany({ where: { companyId: id } });
         await tx.companyBoostInjection.deleteMany({ where: { companyId: id } });
         await tx.companyBoostAccount.deleteMany({ where: { companyId: id } });
+        await tx.companyCapitalFlowEntry.deleteMany({ where: { companyId: id } });
         await tx.companyRevenueAccount.deleteMany({ where: { companyId: id } });
         await tx.trade.deleteMany({ where: { companyId: id } });
         await tx.marketOrder.deleteMany({ where: { companyId: id } });
@@ -535,6 +537,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
               company,
               deletedCounts: {
                 feeDistributions: counts.feeDistributions,
+                capitalFlowEntries: counts.capitalFlowEntries,
                 boostInjections: counts.boostInjections,
                 boostAccounts: counts.boostAccounts,
                 revenueAccounts: counts.revenueAccounts,
@@ -566,6 +569,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
           marketOrders: deletedCounts.marketOrders,
           trades: deletedCounts.trades,
           feeDistributions: deletedCounts.feeDistributions,
+          capitalFlowEntries: deletedCounts.capitalFlowEntries,
           revenueAccount: deletedCounts.revenueAccounts,
           boostAccount: deletedCounts.boostAccounts,
           boostInjections: deletedCounts.boostInjections,
@@ -640,6 +644,7 @@ export async function adminTokensRoutes(app: FastifyInstance) {
 
         await tx.companyHolding.deleteMany({ where: { companyId: id, shares: { lte: 0 } } });
         await tx.companyInitialOffer.deleteMany({ where: { companyId: id } });
+        await tx.companyCapitalFlowEntry.deleteMany({ where: { companyId: id } });
         await tx.companyRevenueAccount.deleteMany({ where: { companyId: id } });
         await tx.company.delete({ where: { id } });
       });
