@@ -1,24 +1,27 @@
+import { createHash } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
 import { validatePublicNameAllowed } from './content-moderation-service.js';
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
-function normalizeDiscord(discordId: string) {
-  return discordId.trim();
+export function normalizeDiscord(discordId: string) {
+  return discordId.trim().replace(/^@+/, '').replace(/\s+/g, '').toLowerCase();
 }
 
 function buildInternalEmail(discordId: string) {
-  const safeDiscord = normalizeDiscord(discordId)
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  return `${safeDiscord || 'discord'}@discord.rpc-exchange.local`;
+  const hash = createHash('sha256').update(normalizeDiscord(discordId)).digest('hex');
+  return `discord-${hash}@discord.rpc-exchange.local`;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
 export async function registerUser(name: string, characterName: string, discordId: string, characterPhone: string, password: string, proof: { mimeType: string; fileName?: string; data: string; checksum: string }) {
   const normalizedDiscord = normalizeDiscord(discordId);
+  if (!normalizedDiscord) throw new Error('Discord inválido.');
 
   await validatePublicNameAllowed(name, 'user');
   await validatePublicNameAllowed(characterName, 'character');
@@ -37,32 +40,40 @@ export async function registerUser(name: string, characterName: string, discordI
     throw new Error('Cargo USER não encontrado no seed.');
   }
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email: normalizedEmail,
-      passwordHash,
-      characterName,
-      bankAccountNumber: null,
-      discordId: normalizedDiscord,
-      characterPhone: characterPhone.trim(),
-      approvalStatus: 'PENDING',
-      registrationProof: { create: proof },
-      wallet: { create: {} },
-      roles: { create: [{ roleId: userRole.id }] },
-    },
-    include: { roles: { include: { role: true } } },
-  });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email: normalizedEmail,
+        passwordHash,
+        characterName,
+        bankAccountNumber: null,
+        discordId: normalizedDiscord,
+        characterPhone: characterPhone.trim(),
+        approvalStatus: 'PENDING',
+        registrationProof: { create: proof },
+        wallet: { create: {} },
+        roles: { create: [{ roleId: userRole.id }] },
+      },
+      include: { roles: { include: { role: true } } },
+    });
 
-  return user;
+    return user;
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new Error('Discord já cadastrado.');
+    }
+    throw error;
+  }
 }
 
 export async function loginUser(discordId: string, password: string) {
   const identifier = discordId.trim();
+  const normalizedIdentifier = normalizeDiscord(identifier);
   const user = await prisma.user.findFirst({
     where: identifier.includes('@')
-      ? { OR: [{ discordId: { equals: identifier, mode: 'insensitive' } }, { email: { equals: identifier.toLowerCase(), mode: 'insensitive' } }] }
-      : { discordId: { equals: identifier, mode: 'insensitive' } },
+      ? { OR: [{ discordId: { equals: normalizedIdentifier, mode: 'insensitive' } }, { email: { equals: identifier.toLowerCase(), mode: 'insensitive' } }] }
+      : { discordId: { equals: normalizedIdentifier, mode: 'insensitive' } },
     include: { roles: { include: { role: true } }, wallet: true },
   });
 

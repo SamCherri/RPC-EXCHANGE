@@ -3,6 +3,16 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+function normalizeSeedDiscord(discordId: string) {
+  return discordId.trim().replace(/^@+/, '').replace(/\s+/g, '').toLowerCase();
+}
+
+async function fillMissingDiscordId(userId: string, discordId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { discordId: true } });
+  if (!user || user.discordId) return;
+  await prisma.user.update({ where: { id: userId }, data: { discordId: normalizeSeedDiscord(discordId) } });
+}
+
 async function seedDemoData(params: {
   userRoleId: string;
   brokerRoleId: string;
@@ -23,7 +33,7 @@ async function seedDemoData(params: {
           data: {
             email: demoEmail,
             name: demoLegacy.name || 'Jogador Demo',
-            discordId: demoLegacy.discordId ?? 'jogador-demo',
+            discordId: demoLegacy.discordId ? normalizeSeedDiscord(demoLegacy.discordId) : 'jogador-demo',
           },
         })
       : await prisma.user.upsert({
@@ -37,6 +47,8 @@ async function seedDemoData(params: {
             wallet: { create: {} },
           },
         });
+
+  await fillMissingDiscordId(userDemo.id, demoLegacy?.discordId ?? 'jogador-demo');
 
   await prisma.wallet.upsert({
     where: { userId: userDemo.id },
@@ -116,6 +128,8 @@ async function seedDemoData(params: {
     },
   });
 
+  await fillMissingDiscordId(brokerDemo.id, 'corretor-demo');
+
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: brokerDemo.id, roleId: brokerRoleId } },
     update: {},
@@ -176,15 +190,17 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { discordId: adminLegacy?.discordId ?? 'admin-rpc' },
+    update: {},
     create: {
       name: adminLegacy?.name ?? 'Super Admin Inicial',
       email: adminEmail,
-      discordId: adminLegacy?.discordId ?? 'admin-rpc',
+      discordId: adminLegacy?.discordId ? normalizeSeedDiscord(adminLegacy.discordId) : 'admin-rpc',
       passwordHash,
       wallet: { create: {} },
     },
   });
+
+  await fillMissingDiscordId(admin.id, adminLegacy?.discordId ?? 'admin-rpc');
 
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: admin.id, roleId: superAdminRole.id } }, update: {}, create: { userId: admin.id, roleId: superAdminRole.id } });
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } }, update: {}, create: { userId: admin.id, roleId: adminRole.id } });

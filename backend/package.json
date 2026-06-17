@@ -14,7 +14,7 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:seed:demo": "SEED_DEMO_DATA=true tsx prisma/seed.ts",
     "test": "tsx --test tests/critical-economic-security.test.ts && tsx --test tests/security-production.test.ts && tsx --test tests/rpc-market-simulation.test.ts",
-    "test:critical": "tsx --test tests/content-moderation.test.ts && tsx --test tests/anti-abuse-limits.test.ts && tsx --test tests/admin-reports.test.ts && tsx --test tests/critical-economic-security.test.ts && tsx --test tests/security-production.test.ts && tsx --test tests/economic-alerts.test.ts && tsx --test tests/market-health.test.ts",
+    "test:critical": "tsx --test tests/content-moderation.test.ts && tsx --test tests/anti-abuse-limits.test.ts && tsx --test tests/admin-reports.test.ts && tsx --test tests/critical-economic-security.test.ts && tsx --test tests/security-production.test.ts && tsx --test tests/economic-alerts.test.ts && tsx --test tests/market-health.test.ts && tsx --test tests/real-economic-security.test.ts",
     "test:critical:ci": "npm run prisma:generate && prisma migrate deploy && npm run test:critical",
     "test:simulation": "tsx --test tests/rpc-market-simulation.test.ts"
   },

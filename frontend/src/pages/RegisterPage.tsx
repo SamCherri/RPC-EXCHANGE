@@ -25,7 +25,7 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
       if (password !== passwordConfirmation) throw new Error('A confirmação de senha não confere.');
       await api('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, characterName, discordId, characterPhone, password, screenshot }),
+        body: JSON.stringify({ name, characterName, discordId, characterPhone, password, passwordConfirmation, screenshot }),
       });
       setMessage('✓ Conta criada com sucesso! Redirecionando para login...');
       setTimeout(() => {

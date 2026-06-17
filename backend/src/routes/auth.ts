@@ -13,10 +13,14 @@ export async function authRoutes(app: FastifyInstance) {
       characterPhone: z.string().min(3),
       screenshot: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']), fileName: z.string().optional(), data: z.string().min(20) }),
       password: z.string().min(8),
+      passwordConfirmation: z.string().min(8).optional(),
     });
 
     try {
       const body = schema.parse(request.body);
+      if (body.passwordConfirmation !== undefined && body.passwordConfirmation !== body.password) {
+        return reply.code(400).send({ message: 'A confirmação de senha não confere.' });
+      }
       const cleanData = body.screenshot.data.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
       const user = await registerUser(body.name, body.characterName, body.discordId, body.characterPhone, body.password, {
         mimeType: body.screenshot.mimeType,

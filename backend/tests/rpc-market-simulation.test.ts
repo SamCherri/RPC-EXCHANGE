@@ -30,7 +30,7 @@ async function resetDb() {
 }
 
 async function grantTestFinancialPermissions(userId: string) {
-  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
+  await prisma.userFinancialPermission.createMany({ data: (['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const).map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
 }
 
 async function mkRole(key: string) {
