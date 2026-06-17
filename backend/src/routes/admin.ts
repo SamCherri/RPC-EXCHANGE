@@ -5,6 +5,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { getMarketHealthReport } from '../services/market-health-service.js';
+import { normalizeDiscord } from '../services/auth-service.js';
 import { toCsv } from '../services/csv-export-service.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -31,9 +32,19 @@ async function resolveUniqueUserByRef(
   roleKey?: string,
 ) {
   const trimmedRef = ref.trim();
+  const roleFilter = roleKey ? { roles: { some: { role: { key: roleKey } } } } : {};
+  const normalizedDiscord = normalizeDiscord(trimmedRef);
+  if (normalizedDiscord) {
+    const discordUser = await tx.user.findFirst({
+      where: { ...roleFilter, discordId: { equals: normalizedDiscord, mode: 'insensitive' } },
+      include: { roles: { select: { role: { select: { key: true } } } } },
+    });
+    if (discordUser) return discordUser;
+  }
+
   const candidates = await tx.user.findMany({
     where: {
-      ...(roleKey ? { roles: { some: { role: { key: roleKey } } } } : {}),
+      ...roleFilter,
       OR: [
         { bankAccountNumber: { equals: trimmedRef } },
         { characterName: { equals: trimmedRef, mode: 'insensitive' } },
@@ -46,7 +57,7 @@ async function resolveUniqueUserByRef(
   });
 
   if (candidates.length === 0) throw new Error('Usuário não encontrado.');
-  if (candidates.length > 1) throw new Error('Referência ambígua. Use a Conta RP exata ou o email técnico.');
+  if (candidates.length > 1) throw new Error('Referência ambígua. Use o Discord exato do usuário.');
   return candidates[0];
 }
 
@@ -476,7 +487,7 @@ export async function adminRoutes(app: FastifyInstance) {
         if (!value.brokerEmail && !value.brokerUserId && !value.brokerRef) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Informe o e-mail do corretor.',
+            message: 'Informe o Discord ou ID do corretor.',
             path: ['brokerEmail'],
           });
         }
@@ -587,7 +598,7 @@ export async function adminRoutes(app: FastifyInstance) {
         if (!value.userId && !value.userEmail && !value.userRef) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Informe o e-mail ou id do usuário de destino.',
+            message: 'Informe o Discord ou ID do usuário de destino.',
             path: ['userEmail'],
           });
         }
@@ -737,7 +748,7 @@ export async function adminRoutes(app: FastifyInstance) {
         if (!value.adminEmail && !value.adminId && !value.adminRef) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Informe o e-mail ou id do administrador de destino.',
+            message: 'Informe o Discord ou ID do administrador de destino.',
             path: ['adminEmail'],
           });
         }

@@ -9,11 +9,10 @@ type RegisterPageProps = {
 export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
   const [name, setName] = useState('');
   const [characterName, setCharacterName] = useState('');
-  const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [discordId, setDiscordId] = useState('');
   const [characterPhone, setCharacterPhone] = useState('');
   const [screenshot, setScreenshot] = useState<{ mimeType: 'image/png'|'image/jpeg'|'image/webp'; fileName?: string; data: string } | null>(null);
-  const [email, setEmail] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -23,20 +22,20 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
     setIsLoading(true);
     try {
       if (!screenshot) throw new Error('Envie o screenshot obrigatório do cadastro.');
+      if (password !== passwordConfirmation) throw new Error('A confirmação de senha não confere.');
       await api('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, characterName, bankAccountNumber, discordId, characterPhone, email, password, screenshot }),
+        body: JSON.stringify({ name, characterName, discordId, characterPhone, password, passwordConfirmation, screenshot }),
       });
       setMessage('✓ Conta criada com sucesso! Redirecionando para login...');
       setTimeout(() => {
         setName('');
         setCharacterName('');
-        setBankAccountNumber('');
         setDiscordId('');
         setCharacterPhone('');
         setScreenshot(null);
-        setEmail('');
         setPassword('');
+        setPasswordConfirmation('');
         if (onSwitchLogin) onSwitchLogin();
       }, 1500);
     } catch (error) {
@@ -79,19 +78,6 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
         </label>
 
         <label>
-          <span className="label-text">Número da conta bancária</span>
-          <input 
-            placeholder="Ex.: RP-12345" 
-            value={bankAccountNumber} 
-            onChange={(event) => setBankAccountNumber(event.target.value)} 
-            disabled={isLoading}
-            required 
-            minLength={3} 
-          />
-          <small className="label-hint">Fictícia, usada apenas no RP</small>
-        </label>
-
-        <label>
           <span className="label-text">Discord</span>
           <input placeholder="Ex.: usuario#0001 ou ID do Discord" value={discordId} onChange={(event) => setDiscordId(event.target.value)} disabled={isLoading} required minLength={2} />
         </label>
@@ -109,18 +95,6 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
         </label>
 
         <label>
-          <span className="label-text">E-mail</span>
-          <input 
-            placeholder="seu.email@exemplo.com" 
-            type="email" 
-            value={email} 
-            onChange={(event) => setEmail(event.target.value)} 
-            disabled={isLoading}
-            required 
-          />
-        </label>
-
-        <label>
           <span className="label-text">Senha</span>
           <input 
             placeholder="Mínimo 8 caracteres" 
@@ -132,6 +106,19 @@ export function RegisterPage({ onSwitchLogin }: RegisterPageProps) {
             minLength={8} 
           />
           <small className="label-hint">Use uma senha forte com números e símbolos</small>
+        </label>
+
+        <label>
+          <span className="label-text">Confirmar senha</span>
+          <input 
+            placeholder="Digite a senha novamente" 
+            type="password" 
+            value={passwordConfirmation} 
+            onChange={(event) => setPasswordConfirmation(event.target.value)} 
+            disabled={isLoading}
+            required 
+            minLength={8} 
+          />
         </label>
 
         <button className="button-primary" type="submit" disabled={isLoading}>

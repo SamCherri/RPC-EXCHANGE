@@ -20,7 +20,6 @@ export async function userRoutes(app: FastifyInstance) {
     return {
       id: user.id,
       name: user.name,
-      email: user.email,
       discordId: user.discordId,
       characterPhone: user.characterPhone,
       approvalStatus: user.approvalStatus,

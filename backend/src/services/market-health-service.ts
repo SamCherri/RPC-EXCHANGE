@@ -26,10 +26,7 @@ const toNum = (v: unknown) => Number(v ?? 0);
 const sectionStatus = (issues: MarketHealthIssue[]): Status => issues.some((i) => i.severity === 'CRITICAL') ? 'CRITICAL' : issues.length > 0 ? 'WARNING' : 'OK';
 
 export async function getMarketHealthReport() {
-  const [testWallets, testMarket, testTrades, wallets, rpcOrders, rpcTrades, rpcMarket, platformAccounts, holdings, marketOrders, companyTrades] = await Promise.all([
-    prisma.testModeWallet.findMany(),
-    prisma.testModeMarketState.findFirst(),
-    prisma.testModeTrade.findMany({ take: TRADE_LIMIT, orderBy: { createdAt: 'desc' } }),
+  const [wallets, rpcOrders, rpcTrades, rpcMarket, platformAccounts, holdings, marketOrders, companyTrades] = await Promise.all([
     prisma.wallet.findMany(),
     prisma.rpcLimitOrder.findMany({ where: { status: { in: ['OPEN'] } } }) as Promise<RpcLimitOrderRecord[]>,
     prisma.rpcExchangeTrade.findMany({ take: TRADE_LIMIT, orderBy: { createdAt: 'desc' } }),
@@ -39,19 +36,6 @@ export async function getMarketHealthReport() {
     prisma.marketOrder.findMany({ where: { status: { in: ['OPEN', 'PARTIALLY_FILLED'] } } }),
     prisma.trade.findMany({ take: TRADE_LIMIT, orderBy: { createdAt: 'desc' } }),
   ]);
-
-  const testIssues: MarketHealthIssue[] = [];
-  for (const w of testWallets) if (toNum(w.fiatBalance) < 0 || toNum(w.rpcBalance) < 0) testIssues.push({ severity: 'CRITICAL', code: 'TEST_WALLET_NEGATIVE', title: 'Carteira teste negativa', description: 'Saldo negativo na carteira de teste.', entity: 'TestModeWallet', entityId: w.id, userId: w.userId, actual: `fiat=${w.fiatBalance}, rpc=${w.rpcBalance}` });
-  if (testMarket) {
-    if (toNum(testMarket.fiatReserve) < 0 || toNum(testMarket.rpcReserve) < 0) testIssues.push({ severity: 'CRITICAL', code: 'TEST_MARKET_NEGATIVE_RESERVE', title: 'Reserva negativa no modo teste', description: 'Reserva negativa no estado de mercado de teste.', entity: 'TestModeMarketState', entityId: testMarket.id });
-    const expected = toNum(testMarket.rpcReserve) > 0 ? toNum(testMarket.fiatReserve) / toNum(testMarket.rpcReserve) : 0;
-    const diffPct = expected > 0 ? Math.abs((toNum(testMarket.currentPrice) - expected) / expected) * 100 : 0;
-    if (diffPct > 0.5) testIssues.push({ severity: diffPct > 2 ? 'CRITICAL' : 'WARNING', code: 'TEST_MARKET_PRICE_DIVERGENCE', title: 'Divergência de preço no modo teste', description: 'currentPrice diverge de fiatReserve/rpcReserve.', entity: 'TestModeMarketState', entityId: testMarket.id, expected: expected.toFixed(8), actual: String(testMarket.currentPrice) });
-  }
-  for (const t of testTrades) {
-    const expected = toNum(t.rpcAmount) > 0 ? toNum(t.fiatAmount) / toNum(t.rpcAmount) : 0;
-    if (expected > 0 && Math.abs(toNum(t.unitPrice) - expected) > 0.000001) testIssues.push({ severity: 'WARNING', code: 'TEST_TRADE_UNIT_PRICE_INCONSISTENT', title: 'Preço unitário inconsistente', description: 'unitPrice divergente de fiat/rpc no trade de teste.', entity: 'TestModeTrade', entityId: t.id, userId: t.userId });
-  }
 
   const rpcIssues: MarketHealthIssue[] = [];
   for (const w of wallets) if ([w.fiatAvailableBalance, w.fiatLockedBalance, w.rpcAvailableBalance, w.rpcLockedBalance].some((f) => toNum(f) < 0)) rpcIssues.push({ severity: 'CRITICAL', code: 'RPC_WALLET_NEGATIVE', title: 'Carteira RPC com saldo negativo', description: 'Um ou mais campos da wallet RPC estão negativos.', entity: 'Wallet', entityId: w.id, userId: w.userId });
@@ -85,11 +69,10 @@ export async function getMarketHealthReport() {
   }
 
   const sections = {
-    testMode: { status: sectionStatus(testIssues), issues: testIssues, metrics: { analyzedTrades: testTrades.length, analysisLimit: TRADE_LIMIT } },
     rpcMarket: { status: sectionStatus(rpcIssues), issues: rpcIssues, metrics: { analyzedTrades: rpcTrades.length, analysisLimit: TRADE_LIMIT, hasRpcMarketState: Boolean(rpcMarket) } },
     companyMarket: { status: sectionStatus(companyIssues), issues: companyIssues, metrics: { analyzedTrades: companyTrades.length, analysisLimit: TRADE_LIMIT, unsupportedChecks: ['COMPANY_TRADE_PRICE_OUTSIDE_LIMIT'] } },
   } satisfies Record<string, MarketHealthSection>;
-  const all = [...testIssues, ...rpcIssues, ...companyIssues];
+  const all = [...rpcIssues, ...companyIssues];
   const criticalIssues = all.filter((i) => i.severity === 'CRITICAL').length;
   return { status: criticalIssues > 0 ? 'CRITICAL' as Status : all.length ? 'WARNING' as Status : 'OK' as Status, generatedAt: new Date().toISOString(), summary: { totalIssues: all.length, criticalIssues, warningIssues: all.length - criticalIssues }, sections };
 }

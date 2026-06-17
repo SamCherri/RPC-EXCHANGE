@@ -32,7 +32,7 @@ async function mkCompany(ownerId: string, ticker: string) {
 }
 
 async function grantTestFinancialPermissions(userId: string) {
-  await prisma.userFinancialPermission.createMany({ data: ['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const.map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
+  await prisma.userFinancialPermission.createMany({ data: (['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'] as const).map((permission) => ({ userId, permission, grantedById: userId, reason: 'Permissão financeira em fixture de teste' })), skipDuplicates: true });
 }
 
 test.before(async () => { await app.ready(); });
@@ -74,20 +74,6 @@ test('4) bloqueia novo saque no limite de pendentes', async () => {
   await prisma.withdrawalRequest.createMany({ data: Array.from({ length: MAX_PENDING_WITHDRAWALS_PER_USER }, (_, i) => ({ code: `WD-L${i}`, userId: user.id, amount: new Decimal(10), status: i % 2 ? 'PENDING' : 'PROCESSING' })) });
   const res = await app.inject({ method: 'POST', url: '/api/withdrawals', headers: { authorization: `Bearer ${tk}` }, payload: { amount: 10 } });
   assert.equal(res.statusCode, 400);
-});
-
-test('5) bloqueia novo report no limite por hora', async () => {
-  await resetDb();
-  const user = await mkUser('report-limit@test.local');
-  const tk = await token(user.id);
-  await prisma.systemModeConfig.upsert({
-    where: { id: 'SYSTEM_MODE_MAIN' },
-    update: { mode: 'TEST' },
-    create: { id: 'SYSTEM_MODE_MAIN', mode: 'TEST' },
-  });
-  await prisma.testModeReport.createMany({ data: Array.from({ length: MAX_REPORTS_PER_HOUR }, () => ({ userId: user.id, type: 'BUG', location: 'mercado', description: 'descricao', userSnapshot: '{}' })) });
-  const res = await app.inject({ method: 'POST', url: '/api/test-mode/reports', headers: { authorization: `Bearer ${tk}` }, payload: { type: 'BUG', location: 'mercado', description: 'novo report' } });
-  assert.equal(res.statusCode, 429);
 });
 
 test('6) bloqueia criação de projeto quando usuário comum está no limite diário', async () => {

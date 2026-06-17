@@ -89,25 +89,25 @@ test('login inválido bloqueia temporariamente e login válido zera contador', a
     await resetDb();
 
     const role = await prisma.role.create({ data: { key: 'USER', name: 'USER' } });
-    const ok = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Teste', characterName: 'Personagem', bankAccountNumber: '12345', discordId: 'discord-lock', characterPhone: '555-0100', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'lock@test.local', password: '12345678' } });
+    const ok = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Teste', characterName: 'Personagem', discordId: 'discord-lock', characterPhone: '555-0100', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, password: '12345678' } });
     assert.equal(ok.statusCode, 201, ok.body);
-    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'lock@test.local' } });
+    const user = await prisma.user.findFirstOrThrow({ where: { discordId: 'discord-lock' } });
     assert.equal(role.key, 'USER');
 
     for (let i = 0; i < 4; i++) {
-      const bad = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'lock@test.local', password: 'senha-errada' } });
+      const bad = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discordId: 'discord-lock', password: 'senha-errada' } });
       assert.equal(bad.statusCode, 401);
       assert.equal(bad.json().message, 'Credenciais inválidas.');
     }
 
-    const locked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'lock@test.local', password: 'senha-errada' } });
+    const locked = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discordId: 'discord-lock', password: 'senha-errada' } });
     assert.equal(locked.statusCode, 401);
     assert.equal(locked.json().message, 'Muitas tentativas inválidas. Tente novamente mais tarde.');
 
     const unlockedNow = await prisma.user.update({ where: { id: user.id }, data: { loginLockedUntil: new Date(Date.now() - 1000) } });
     assert.ok(unlockedNow);
 
-    const success = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: 'lock@test.local', password: '12345678' } });
+    const success = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { discordId: 'discord-lock', password: '12345678' } });
     assert.equal(success.statusCode, 200, success.body);
 
     const refreshed = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
@@ -132,7 +132,7 @@ test('rate limit retorna 429 em endpoint sensível', async () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/auth/login',
-        payload: { email: 'nao-existe@test.local', password: '12345678' },
+        payload: { discordId: 'nao-existe', password: '12345678' },
       });
       if (response.statusCode === 429) {
         limitedResponse = response;

@@ -9,18 +9,20 @@ export async function authRoutes(app: FastifyInstance) {
     const schema = z.object({
       name: z.string().min(3),
       characterName: z.string().min(3),
-      bankAccountNumber: z.string().min(3),
       discordId: z.string().min(2),
       characterPhone: z.string().min(3),
       screenshot: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']), fileName: z.string().optional(), data: z.string().min(20) }),
-      email: z.string().email(),
       password: z.string().min(8),
+      passwordConfirmation: z.string().min(8).optional(),
     });
 
     try {
       const body = schema.parse(request.body);
+      if (body.passwordConfirmation !== undefined && body.passwordConfirmation !== body.password) {
+        return reply.code(400).send({ message: 'A confirmação de senha não confere.' });
+      }
       const cleanData = body.screenshot.data.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-      const user = await registerUser(body.name, body.characterName, body.bankAccountNumber, body.discordId, body.characterPhone, body.email, body.password, {
+      const user = await registerUser(body.name, body.characterName, body.discordId, body.characterPhone, body.password, {
         mimeType: body.screenshot.mimeType,
         fileName: body.screenshot.fileName,
         data: cleanData,
@@ -32,11 +34,9 @@ export async function authRoutes(app: FastifyInstance) {
         id: user.id,
         name: user.name,
         characterName: user.characterName,
-        bankAccountNumber: user.bankAccountNumber,
         discordId: user.discordId,
         characterPhone: user.characterPhone,
         approvalStatus: user.approvalStatus,
-        email: user.email,
       });
     } catch (error) {
       if (error instanceof ZodError) {
@@ -72,11 +72,9 @@ export async function authRoutes(app: FastifyInstance) {
         id: user.id,
         name: user.name,
         characterName: user.characterName,
-        bankAccountNumber: user.bankAccountNumber,
         discordId: user.discordId,
         characterPhone: user.characterPhone,
         approvalStatus: user.approvalStatus,
-        email: user.email,
         roles,
         isBlocked: user.isBlocked,
         createdAt: user.createdAt,
@@ -106,18 +104,18 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.post('/auth/login', { config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 8, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const schema = z.object({ email: z.string().email(), password: z.string().min(8) });
+    const schema = z.object({ discordId: z.string().min(2), password: z.string().min(8) });
 
     try {
       const body = schema.parse(request.body);
-      const user = await loginUser(body.email, body.password);
+      const user = await loginUser(body.discordId, body.password);
       const roles = user.roles.map((item: { role: { key: string } }) => item.role.key);
 
       const expiresIn = roles.some((role: string) => ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'].includes(role)) ? '2h' : '8h';
       const token = await reply.jwtSign({ sub: user.id, roles }, { expiresIn });
       await app.logAdmin({ action: 'LOGIN', entity: 'User', userId: user.id, reason: 'Login bem-sucedido' });
 
-      return { token, user: { id: user.id, name: user.name, email: user.email, roles } };
+      return { token, user: { id: user.id, name: user.name, discordId: user.discordId, roles } };
     } catch (error) {
       if (error instanceof ZodError) {
         return reply.code(400).send({ message: 'Dados de login inválidos.' });

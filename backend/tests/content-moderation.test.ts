@@ -90,12 +90,15 @@ test('permite projeto normal e reforça para usuário comum', async () => {
   assert.equal(ok.statusCode, 201, ok.body);
 });
 
-test('conta RP única no cadastro', async () => {
+test('Discord único no cadastro ignora diferença de maiúsculas e minúsculas', async () => {
   await resetDb();
   await prisma.role.create({ data: { key: 'USER', name: 'Usuário' } });
 
-  const first = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User One', characterName: 'Cidadao Um', bankAccountNumber: 'RP-UNICO-1', discordId: 'discord-cad-1', characterPhone: '555-0201', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'cad1@test.local', password: '12345678' } });
+  const screenshot = { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' };
+  const first = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User One', characterName: 'Cidadao Um', discordId: 'Discord.Cad.1', characterPhone: '555-0201', screenshot, password: '12345678' } });
   assert.equal(first.statusCode, 201, first.body);
-  const second = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Two', characterName: 'Cidadao Dois', bankAccountNumber: 'RP-UNICO-1', discordId: 'discord-cad-2', characterPhone: '555-0202', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, email: 'cad2@test.local', password: '12345678' } });
-  assert.equal(second.statusCode, 400); assert.match(second.body, /Conta RP já está em uso por outro usuário/);
+
+  const second = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User Two', characterName: 'Cidadao Dois', discordId: 'discord.cad.1', characterPhone: '555-0202', screenshot, password: '12345678' } });
+  assert.equal(second.statusCode, 400);
+  assert.match(second.body, /Discord já cadastrado/);
 });

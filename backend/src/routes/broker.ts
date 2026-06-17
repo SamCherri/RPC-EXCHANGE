@@ -3,6 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { assertFinancialPermission } from '../services/registration-approval-service.js';
+import { normalizeDiscord } from '../services/auth-service.js';
 import { prisma } from '../lib/prisma.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
@@ -16,7 +17,7 @@ const transferSchema = z
     reason: z.string().min(3),
   })
   .refine((data) => Boolean(data.userEmail || data.userId || data.userRef), {
-    message: 'Informe conta RP, personagem, nome, e-mail técnico ou ID do usuário.',
+    message: 'Informe o Discord, ID interno, personagem, nome ou referência legada do usuário.',
     path: ['userRef'],
   });
 
@@ -31,6 +32,15 @@ function requireBroker(reply: FastifyReply, roles: string[]) {
 
 async function resolveUniqueUserByRef(tx: Prisma.TransactionClient, ref: string) {
   const trimmedRef = ref.trim();
+  const normalizedDiscord = normalizeDiscord(trimmedRef);
+  if (normalizedDiscord) {
+    const discordUser = await tx.user.findFirst({
+      where: { discordId: { equals: normalizedDiscord, mode: 'insensitive' } },
+      include: { wallet: true },
+    });
+    if (discordUser) return discordUser;
+  }
+
   const candidates = await tx.user.findMany({
     where: {
       OR: [
@@ -45,7 +55,7 @@ async function resolveUniqueUserByRef(tx: Prisma.TransactionClient, ref: string)
   });
 
   if (candidates.length === 0) throw new Error('Usuário não encontrado.');
-  if (candidates.length > 1) throw new Error('Referência ambígua. Use a Conta RP exata ou o email técnico.');
+  if (candidates.length > 1) throw new Error('Referência ambígua. Use o Discord exato do usuário.');
   return candidates[0];
 }
 

@@ -9,16 +9,13 @@ import { CompaniesPage } from './pages/CompaniesPage';
 import { WithdrawalsPage } from './pages/WithdrawalsPage';
 import { ProjectOwnerPanel } from './pages/ProjectOwnerPanel';
 import { RpcMarketPage } from './pages/RpcMarketPage';
-import { TestModePage } from './pages/TestModePage';
-import { TestModeRankingPage } from './pages/TestModeRankingPage';
 import { RegistrationStatusPage } from './pages/RegistrationStatusPage';
-import { TestModeReportPage } from './pages/TestModeReportPage';
 import { api, getCurrentUser, CurrentUserResponse } from './services/api';
 import { BrandLogo } from './components/BrandLogo';
 import { SideDrawer, SideDrawerItem } from './components/SideDrawer';
 
 type PublicTab = 'login' | 'register';
-type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'withdrawals' | 'company-request' | 'admin' | 'broker' | 'my-projects' | 'test-mode' | 'test-ranking' | 'test-report';
+type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'withdrawals' | 'company-request' | 'admin' | 'broker' | 'my-projects';
 
 type ViewerRoles = {
   canSeeAdmin: boolean;
@@ -28,10 +25,6 @@ type ViewerRoles = {
 
 type CurrentUser = CurrentUserResponse['user'];
 
-type InstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN']);
 const BROKER_ROLES = new Set(['VIRTUAL_BROKER']);
@@ -70,15 +63,9 @@ export function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [publicTab, setPublicTab] = useState<PublicTab>('login');
   const [screen, setScreen] = useState<PrivateScreen>('home');
-  const [installPromptEvent, setInstallPromptEvent] = useState<InstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(
-    () => window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
-  );
-  const [installHint, setInstallHint] = useState('');
   const [hasOwnedProjects, setHasOwnedProjects] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isGlobalDrawerOpen, setIsGlobalDrawerOpen] = useState(false);
-  const [systemMode, setSystemMode] = useState<'NORMAL'|'TEST'>('NORMAL');
 
   const tokenRoles = useMemo(() => decodeRolesFromToken(token), [token]);
   const roles = useMemo(() => {
@@ -96,34 +83,7 @@ export function App() {
   const canSeeMyProjects = roles.canSeeProjectOwner || hasOwnedProjects;
 
   const registrationBlocked = Boolean(token && currentUser && !roles.canSeeAdmin && currentUser.approvalStatus !== 'APPROVED');
-  const isTestModeRestrictedUser = systemMode === 'TEST' && !roles.canSeeAdmin;
-  const shouldShowTestModeEntry = roles.canSeeAdmin || systemMode === 'TEST';
-  async function loadSystemMode() {
-    try {
-      const response = await api<{ mode: 'NORMAL'|'TEST' }>('/system-mode');
-      setSystemMode(response.mode);
-    } catch {
-      setSystemMode('NORMAL');
-    }
-  }
 
-  useEffect(() => {
-    if (!token) return;
-
-    if (
-      isTestModeRestrictedUser &&
-      screen !== 'test-mode' &&
-      screen !== 'test-ranking' &&
-      screen !== 'test-report'
-    ) {
-      setScreen('test-mode');
-      return;
-    }
-
-    if (!roles.canSeeAdmin && systemMode === 'NORMAL' && (screen === 'test-mode' || screen === 'test-ranking' || screen === 'test-report')) {
-      setScreen('home');
-    }
-  }, [isTestModeRestrictedUser, roles.canSeeAdmin, screen, systemMode, token]);
 
   useEffect(() => {
     if (token) {
@@ -153,8 +113,6 @@ export function App() {
       return;
     }
 
-    void loadSystemMode();
-
     getCurrentUser()
       .then((response) => {
         setCurrentUser(response.user);
@@ -173,57 +131,11 @@ export function App() {
       .then((response) => setHasOwnedProjects(response.companies.length > 0))
       .catch(() => setHasOwnedProjects(false));
   }, [token]);
-  useEffect(() => {
-    if (!token) return;
-    const interval = window.setInterval(() => {
-      void loadSystemMode();
-    }, 15000);
-    return () => window.clearInterval(interval);
-  }, [token]);
-  useEffect(() => {
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPromptEvent(event as InstallPromptEvent);
-      setInstallHint('');
-    };
 
-    const onInstalled = () => {
-      setIsInstalled(true);
-      setInstallPromptEvent(null);
-      setInstallHint('App instalado com sucesso no seu dispositivo.');
-    };
-
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
 
   const canGoBack = useMemo(() => screen !== 'home', [screen]);
 
-  async function handleInstallClick() {
-    if (isInstalled) {
-      setInstallHint('App instalado. Abra pela sua tela inicial.');
-      return;
-    }
 
-    if (installPromptEvent) {
-      await installPromptEvent.prompt();
-      const choice = await installPromptEvent.userChoice;
-      if (choice.outcome === 'accepted') {
-        setInstallHint('Instalação iniciada.');
-      } else {
-        setInstallHint('Instalação cancelada. Você pode tentar novamente depois.');
-      }
-      setInstallPromptEvent(null);
-      return;
-    }
-
-    setInstallHint('No navegador, toque nos três pontos e escolha Adicionar à tela inicial.');
-  }
 
   function handleLogout() {
     setToken(null);
@@ -231,34 +143,23 @@ export function App() {
     setPublicTab('login');
   }
 
-  const showInstallCard = !isInstalled;
-
   const globalDrawerItems = useMemo<SideDrawerItem[]>(() => {
     const items: SideDrawerItem[] = [
-      ...(shouldShowTestModeEntry ? [
-        { key: 'test-mode', label: 'Modo Teste', icon: '🧪', active: screen === 'test-mode', onClick: () => setScreen('test-mode'), section: 'main' } as SideDrawerItem,
-        { key: 'test-ranking', label: 'Ranking Teste', icon: '🏆', active: screen === 'test-ranking', onClick: () => setScreen('test-ranking'), section: 'main' } as SideDrawerItem,
-        { key: 'test-report', label: 'Reportar Bug', icon: '🐞', active: screen === 'test-report', onClick: () => setScreen('test-report'), section: 'main' } as SideDrawerItem,
-      ] : []),
-      ...((isTestModeRestrictedUser
-        ? []
-        : [
-            { key: 'home', label: 'Início', icon: '🏠', active: screen === 'home', onClick: () => setScreen('home'), section: 'main' },
-            { key: 'markets', label: 'Mercados', icon: '🪙', active: screen === 'markets', onClick: () => setScreen('markets'), section: 'main' },
-            { key: 'wallet', label: 'Carteira', icon: '💼', active: screen === 'wallet', onClick: () => setScreen('wallet'), section: 'main' },
-            { key: 'rpc-market', label: 'RPC/R$', icon: '💴', active: screen === 'rpc-market', onClick: () => setScreen('rpc-market'), section: 'main' },
-            { key: 'withdrawals', label: 'Saque', icon: '🏧', active: screen === 'withdrawals', onClick: () => setScreen('withdrawals'), section: 'secondary' },
-            { key: 'company-request', label: 'Criar token', icon: '🚀', active: screen === 'company-request', onClick: () => setScreen('company-request'), section: 'secondary' },
-          ] as SideDrawerItem[])),
+      { key: 'home', label: 'Início', icon: '🏠', active: screen === 'home', onClick: () => setScreen('home'), section: 'main' },
+      { key: 'markets', label: 'Mercados', icon: '🪙', active: screen === 'markets', onClick: () => setScreen('markets'), section: 'main' },
+      { key: 'wallet', label: 'Carteira', icon: '💼', active: screen === 'wallet', onClick: () => setScreen('wallet'), section: 'main' },
+      { key: 'rpc-market', label: 'RPC/R$', icon: '💴', active: screen === 'rpc-market', onClick: () => setScreen('rpc-market'), section: 'main' },
+      { key: 'withdrawals', label: 'Saque', icon: '🏧', active: screen === 'withdrawals', onClick: () => setScreen('withdrawals'), section: 'secondary' },
+      { key: 'company-request', label: 'Criar token', icon: '🚀', active: screen === 'company-request', onClick: () => setScreen('company-request'), section: 'secondary' },
     ];
 
-    if (canSeeMyProjects && !isTestModeRestrictedUser) items.push({ key: 'my-projects', label: 'Meus Projetos', icon: '📊', active: screen === 'my-projects', onClick: () => setScreen('my-projects'), section: 'secondary' });
+    if (canSeeMyProjects) items.push({ key: 'my-projects', label: 'Meus Projetos', icon: '📊', active: screen === 'my-projects', onClick: () => setScreen('my-projects'), section: 'secondary' });
     if (roles.canSeeAdmin) items.push({ key: 'admin', label: 'Admin', icon: '🛠️', active: screen === 'admin', onClick: () => setScreen('admin'), section: 'main' });
-    if (roles.canSeeBroker && !isTestModeRestrictedUser) items.push({ key: 'broker', label: 'Corretor', icon: '🤝', active: screen === 'broker', onClick: () => setScreen('broker'), section: 'secondary' });
+    if (roles.canSeeBroker) items.push({ key: 'broker', label: 'Corretor', icon: '🤝', active: screen === 'broker', onClick: () => setScreen('broker'), section: 'secondary' });
 
     items.push({ key: 'logout', label: 'Sair', icon: '🚪', danger: true, section: 'danger', onClick: handleLogout });
     return items;
-  }, [canSeeMyProjects, handleLogout, isTestModeRestrictedUser, roles.canSeeAdmin, roles.canSeeBroker, screen, shouldShowTestModeEntry]);
+  }, [canSeeMyProjects, handleLogout, roles.canSeeAdmin, roles.canSeeBroker, screen]);
 
   if (registrationBlocked) {
     return <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />;
@@ -276,20 +177,12 @@ export function App() {
             <p className="info-text">Sem cripto real, sem blockchain, sem Pix, sem cartão e sem gateway de pagamento.</p>
           </header>
 
-          <article className="card install-card nested-card">
-            <h3>📲 Instalar aplicativo</h3>
-            <p className="info-text">Use a RPC Exchange como app no celular.</p>
-            <button className="button-primary" onClick={handleInstallClick} type="button">
-              Instalar aplicativo
-            </button>
-            {installHint && <p className="info-text">{installHint}</p>}
-          </article>
+
 
           <div className="benefits-grid nested-card">
             <span>🪙 Crie e negocie tokens</span>
             <span>📈 Gráficos e ordens</span>
             <span>💼 Carteira digital</span>
-            <span>📲 Instale como app</span>
           </div>
 
           <nav className="pill-nav nested-card" aria-label="Alternar entre login e cadastro">
@@ -346,21 +239,9 @@ export function App() {
         items={globalDrawerItems}
       />
 
-      {shouldShowTestModeEntry && screen === 'test-mode' && <TestModePage />}
-      {shouldShowTestModeEntry && screen === 'test-ranking' && <TestModeRankingPage />}
-      {shouldShowTestModeEntry && screen === 'test-report' && <TestModeReportPage />}
-      {!isTestModeRestrictedUser && screen === 'home' && (
+      {screen === 'home' && (
         <section className="card">
-          {showInstallCard && (
-            <article className="summary-item install-card">
-              <h3>📲 Instalar aplicativo</h3>
-              <p className="info-text">Use a RPC Exchange como app no celular.</p>
-              <button className="button-primary" onClick={handleInstallClick} type="button">
-                Instalar aplicativo
-              </button>
-              {installHint && <p className="info-text">{installHint}</p>}
-            </article>
-          )}
+
 
           <section className="mobile-home-summary mobile-only">
             <div className="mobile-hero-card">
@@ -428,8 +309,8 @@ export function App() {
         </section>
       )}
 
-      {!isTestModeRestrictedUser && screen === 'markets' && <CompaniesPage />}
-      {!isTestModeRestrictedUser && screen === 'wallet' && (
+      {screen === 'markets' && <CompaniesPage />}
+      {screen === 'wallet' && (
         <UserDashboard
           onOpenRpcMarket={(action) => {
             setRpcMarketAction(action ?? null);
@@ -441,12 +322,14 @@ export function App() {
           }}
         />
       )}
-      {!isTestModeRestrictedUser && screen === 'rpc-market' && <RpcMarketPage initialTradeFlow={rpcMarketAction} onTradeFlowHandled={() => setRpcMarketAction(null)} />}
-      {!isTestModeRestrictedUser && screen === 'withdrawals' && <WithdrawalsPage />}
-      {!isTestModeRestrictedUser && screen === 'company-request' && <CompanyRequestPage />}
-      {!isTestModeRestrictedUser && screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}
+      {screen === 'rpc-market' && <RpcMarketPage initialTradeFlow={rpcMarketAction} onTradeFlowHandled={() => setRpcMarketAction(null)} />}
+      {screen === 'withdrawals' && <WithdrawalsPage />}
+      {screen === 'company-request' && <CompanyRequestPage />}
+      {screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}
       {screen === 'admin' && roles.canSeeAdmin && <AdminDashboard currentUserRoles={currentUser?.roles ?? []} onPermissionsUpdated={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />}
-      {!isTestModeRestrictedUser && screen === 'broker' && roles.canSeeBroker && <BrokerDashboard />}
+      {screen === 'broker' && roles.canSeeBroker && <BrokerDashboard />}
     </main>
   );
 }
+
+

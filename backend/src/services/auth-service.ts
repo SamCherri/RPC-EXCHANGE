@@ -1,22 +1,37 @@
+import { createHash } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma.js';
-import { validatePublicNameAllowed, validateRpAccountUnique } from './content-moderation-service.js';
+import { validatePublicNameAllowed } from './content-moderation-service.js';
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
 
-export async function registerUser(name: string, characterName: string, bankAccountNumber: string, discordId: string, characterPhone: string, email: string, password: string, proof: { mimeType: string; fileName?: string; data: string; checksum: string }) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const exists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (exists) {
-    throw new Error('E-mail já cadastrado.');
-  }
+export function normalizeDiscord(discordId: string) {
+  return discordId.trim().replace(/^@+/, '').replace(/\s+/g, '').toLowerCase();
+}
+
+function buildInternalEmail(discordId: string) {
+  const hash = createHash('sha256').update(normalizeDiscord(discordId)).digest('hex');
+  return `discord-${hash}@discord.rpc-exchange.local`;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+export async function registerUser(name: string, characterName: string, discordId: string, characterPhone: string, password: string, proof: { mimeType: string; fileName?: string; data: string; checksum: string }) {
+  const normalizedDiscord = normalizeDiscord(discordId);
+  if (!normalizedDiscord) throw new Error('Discord inválido.');
 
   await validatePublicNameAllowed(name, 'user');
   await validatePublicNameAllowed(characterName, 'character');
-  await validateRpAccountUnique(bankAccountNumber);
 
-  const discordExists = await prisma.user.findFirst({ where: { discordId: { equals: discordId.trim(), mode: 'insensitive' } }, select: { id: true } });
+  const discordExists = await prisma.user.findFirst({ where: { discordId: { equals: normalizedDiscord, mode: 'insensitive' } }, select: { id: true } });
   if (discordExists) throw new Error('Discord já cadastrado.');
+
+  const normalizedEmail = buildInternalEmail(normalizedDiscord);
+  const emailExists = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+  if (emailExists) throw new Error('Discord já cadastrado.');
 
   const passwordHash = await bcrypt.hash(password, 10);
 
@@ -25,30 +40,40 @@ export async function registerUser(name: string, characterName: string, bankAcco
     throw new Error('Cargo USER não encontrado no seed.');
   }
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email: normalizedEmail,
-      passwordHash,
-      characterName,
-      bankAccountNumber,
-      discordId: discordId.trim(),
-      characterPhone: characterPhone.trim(),
-      approvalStatus: 'PENDING',
-      registrationProof: { create: proof },
-      wallet: { create: {} },
-      roles: { create: [{ roleId: userRole.id }] },
-    },
-    include: { roles: { include: { role: true } } },
-  });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email: normalizedEmail,
+        passwordHash,
+        characterName,
+        bankAccountNumber: null,
+        discordId: normalizedDiscord,
+        characterPhone: characterPhone.trim(),
+        approvalStatus: 'PENDING',
+        registrationProof: { create: proof },
+        wallet: { create: {} },
+        roles: { create: [{ roleId: userRole.id }] },
+      },
+      include: { roles: { include: { role: true } } },
+    });
 
-  return user;
+    return user;
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new Error('Discord já cadastrado.');
+    }
+    throw error;
+  }
 }
 
-export async function loginUser(email: string, password: string) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
+export async function loginUser(discordId: string, password: string) {
+  const identifier = discordId.trim();
+  const normalizedIdentifier = normalizeDiscord(identifier);
+  const user = await prisma.user.findFirst({
+    where: identifier.includes('@')
+      ? { OR: [{ discordId: { equals: normalizedIdentifier, mode: 'insensitive' } }, { email: { equals: identifier.toLowerCase(), mode: 'insensitive' } }] }
+      : { discordId: { equals: normalizedIdentifier, mode: 'insensitive' } },
     include: { roles: { include: { role: true } }, wallet: true },
   });
 

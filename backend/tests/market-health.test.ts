@@ -29,7 +29,6 @@ test('market health exige permissão e retorna sections', async () => {
   const ok = await app.inject({ method: 'GET', url: '/api/admin/market-health', headers: { authorization: `Bearer ${await auth(auditor.id, ['AUDITOR'])}` } });
   assert.equal(ok.statusCode, 200, ok.body);
   const body = ok.json();
-  assert.ok(body.sections?.testMode);
   assert.ok(body.sections?.rpcMarket);
   assert.ok(body.sections?.companyMarket);
   assert.equal(JSON.stringify(body).includes('passwordHash'), false);
@@ -42,8 +41,6 @@ test('detecta inconsistências principais', async () => {
   await prisma.userRole.create({ data: { userId: admin.id, roleId: r.id } });
   const u = await mkUser('bad@test.local');
 
-  await prisma.testModeWallet.create({ data: { userId: u.id, fiatBalance: -1, rpcBalance: 1 } });
-  await prisma.testModeMarketState.create({ data: { id: 'test_market', currentPrice: 10, fiatReserve: 1000, rpcReserve: 1 } });
   await prisma.wallet.update({ where: { userId: u.id }, data: { fiatAvailableBalance: -10 } });
   await prisma.rpcExchangeTrade.create({ data: { userId: u.id, side: 'BUY_RPC', fiatAmount: 100, rpcAmount: 10, unitPrice: 1, priceBefore: 1, priceAfter: 1 } });
 
@@ -53,9 +50,7 @@ test('detecta inconsistências principais', async () => {
 
   const response = await app.inject({ method: 'GET', url: '/api/admin/market-health', headers: { authorization: `Bearer ${await auth(admin.id, ['SUPER_ADMIN'])}` } });
   const body = response.json();
-  const all = [...body.sections.testMode.issues, ...body.sections.rpcMarket.issues, ...body.sections.companyMarket.issues].map((i: { code: string }) => i.code);
-  assert.ok(all.includes('TEST_WALLET_NEGATIVE'));
-  assert.ok(all.includes('TEST_MARKET_PRICE_DIVERGENCE'));
+  const all = [...body.sections.rpcMarket.issues, ...body.sections.companyMarket.issues].map((i: { code: string }) => i.code);
   assert.ok(all.includes('RPC_WALLET_NEGATIVE'));
   assert.ok(all.includes('RPC_TRADE_UNIT_PRICE_INCONSISTENT'));
   assert.ok(all.includes('COMPANY_SELF_TRADE'));
