@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { normalizeRegistrationProof } from '../services/registration-proof-service.js';
+import { REGISTRATION_PROOF_BODY_LIMIT_BYTES, normalizeRegistrationProof } from '../services/registration-proof-service.js';
 
  type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
@@ -37,17 +37,25 @@ export async function userRoutes(app: FastifyInstance) {
     return { status: user.approvalStatus, note: user.approvalNote, hasScreenshot: Boolean(user.registrationProof), screenshotUpdatedAt: user.registrationProof?.updatedAt ?? null, financialPermissions: user.financialPermissions.filter((p) => !p.revokedAt).map((p) => p.permission) };
   });
 
-  app.put('/registration/screenshot', { preHandler: [app.authenticate], config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '10 minutes' } } }, async (request, reply) => {
-    const userId = (request as AuthRequest).user.sub;
-    const body = z.object({ screenshot: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']), fileName: z.string().optional(), data: z.string().min(20) }) }).parse(request.body);
-    const normalizedProof = normalizeRegistrationProof(body.screenshot);
-    const proof = await prisma.registrationProof.upsert({
-      where: { userId },
-      update: { mimeType: normalizedProof.mimeType, fileName: normalizedProof.fileName, data: normalizedProof.data, checksum: normalizedProof.checksum },
-      create: { userId, mimeType: normalizedProof.mimeType, fileName: normalizedProof.fileName, data: normalizedProof.data, checksum: normalizedProof.checksum },
-    });
-    await prisma.user.update({ where: { id: userId }, data: { approvalStatus: 'PENDING', approvalNote: null } });
-    await prisma.adminLog.create({ data: { userId, action: 'REGISTRATION_SCREENSHOT_RESUBMITTED', entity: `RegistrationProof:${proof.id}`, reason: 'Usuário reenviou screenshot de cadastro.', ip: request.ip, userAgent: request.headers['user-agent'] ?? null } });
-    return { message: 'Screenshot reenviado para nova análise.', proof: { id: proof.id, updatedAt: proof.updatedAt, checksum: proof.checksum } };
+  app.put('/registration/screenshot', { preHandler: [app.authenticate], bodyLimit: REGISTRATION_PROOF_BODY_LIMIT_BYTES, config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '10 minutes' } } }, async (request, reply) => {
+    try {
+      const userId = (request as AuthRequest).user.sub;
+      const body = z.object({ screenshot: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']), fileName: z.string().optional(), data: z.string().min(20) }) }).parse(request.body);
+      const normalizedProof = normalizeRegistrationProof(body.screenshot);
+      const proof = await prisma.registrationProof.upsert({
+        where: { userId },
+        update: { mimeType: normalizedProof.mimeType, fileName: normalizedProof.fileName, data: normalizedProof.data, checksum: normalizedProof.checksum },
+        create: { userId, mimeType: normalizedProof.mimeType, fileName: normalizedProof.fileName, data: normalizedProof.data, checksum: normalizedProof.checksum },
+      });
+      await prisma.user.update({ where: { id: userId }, data: { approvalStatus: 'PENDING', approvalNote: null } });
+      await prisma.adminLog.create({ data: { userId, action: 'REGISTRATION_SCREENSHOT_RESUBMITTED', entity: `RegistrationProof:${proof.id}`, reason: 'Usuário reenviou screenshot de cadastro.', ip: request.ip, userAgent: request.headers['user-agent'] ?? null } });
+      return { message: 'Screenshot reenviado para nova análise.', proof: { id: proof.id, updatedAt: proof.updatedAt, checksum: proof.checksum } };
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const firstIssue = error.issues[0];
+        return reply.code(400).send({ message: firstIssue?.message ?? 'Screenshot inválido.' });
+      }
+      return reply.code(400).send({ message: (error as Error).message });
+    }
   });
 }

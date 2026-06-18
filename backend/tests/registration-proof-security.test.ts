@@ -24,6 +24,7 @@ test.before(async () => {
 
 test.after(async () => {
   await app.close().catch(() => undefined);
+  await prisma.$disconnect();
 });
 
 async function resetDb() {
@@ -120,6 +121,21 @@ test('rejeita conteúdo não reconhecido como imagem e arquivo vazio', async () 
   assert.equal(empty.statusCode, 400, empty.body);
 });
 
+test('reenvio com screenshot inválido retorna 400 sem substituir evidência existente', async () => {
+  await resetDb();
+  await mkRole('USER');
+  const user = await mkUser('resend-invalid@test.local', ['USER'], 'NEEDS_CORRECTION');
+  await prisma.registrationProof.create({ data: { userId: user.id, mimeType: 'image/png', fileName: 'old.png', data: VALID_PNG_BASE64, checksum: 'old-checksum' } });
+  const token = await tokenFor(user.discordId!);
+
+  const response = await app.inject({ method: 'PUT', url: '/api/registration/screenshot', headers: { authorization: `Bearer ${token}` }, payload: { screenshot: { mimeType: 'image/png', fileName: 'fake.png', data: Buffer.from('nao e imagem').toString('base64') } } });
+  assert.equal(response.statusCode, 400, response.body);
+  assert.match(response.json().message, /não foi reconhecido/);
+
+  const proof = await prisma.registrationProof.findUniqueOrThrow({ where: { userId: user.id } });
+  assert.equal(proof.checksum, 'old-checksum');
+});
+
 test('usuário não acessa evidência de outro usuário nem substitui evidência alheia', async () => {
   await resetDb();
   await mkRole('USER');
@@ -175,7 +191,9 @@ test('aprovação cadastral e bloqueio econômico de usuário não aprovado cont
 
   const userToken = await tokenFor(user.discordId!);
   const blockedTrade = await app.inject({ method: 'POST', url: '/api/rpc-market/buy', headers: { authorization: `Bearer ${userToken}` }, payload: { fiatAmount: 10 } });
-  assert.equal(blockedTrade.statusCode, 403, blockedTrade.body);
+  assert.equal(blockedTrade.statusCode, 400, blockedTrade.body);
+  assert.match(blockedTrade.json().message, /Cadastro ainda não aprovado/);
+  assert.equal(await prisma.rpcExchangeTrade.count({ where: { userId: user.id } }), 0);
 
   const adminToken = await tokenFor(admin.discordId!);
   const review = await app.inject({ method: 'PATCH', url: `/api/admin/users/${user.id}/approval`, headers: { authorization: `Bearer ${adminToken}` }, payload: { status: 'APPROVED', note: 'Cadastro conferido' } });

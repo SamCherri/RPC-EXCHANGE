@@ -19,7 +19,7 @@ import { rpcMarketRoutes } from './routes/rpc-market.js';
 import { projectCapitalFlowRoutes } from './routes/project-capital-flow.js';
 
 export function buildApp() {
-  const app = Fastify({ logger: true, bodyLimit: 7 * 1024 * 1024 });
+  const app = Fastify({ logger: true });
 
   const webOrigin = process.env.WEB_ORIGIN;
   const isProduction = process.env.NODE_ENV === 'production';

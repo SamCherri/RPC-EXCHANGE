@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 export const REGISTRATION_PROOF_MAX_BYTES = 5 * 1024 * 1024;
+export const REGISTRATION_PROOF_BODY_LIMIT_BYTES = 7 * 1024 * 1024;
 export const REGISTRATION_PROOF_ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
 
 export type RegistrationProofMimeType = typeof REGISTRATION_PROOF_ALLOWED_MIME_TYPES[number];

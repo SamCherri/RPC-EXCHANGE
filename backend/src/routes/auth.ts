@@ -2,10 +2,10 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z, ZodError } from 'zod';
 import { loginUser, registerUser } from '../services/auth-service.js';
 import { prisma } from '../lib/prisma.js';
-import { normalizeRegistrationProof } from '../services/registration-proof-service.js';
+import { REGISTRATION_PROOF_BODY_LIMIT_BYTES, normalizeRegistrationProof } from '../services/registration-proof-service.js';
 
 export async function authRoutes(app: FastifyInstance) {
-  app.post('/auth/register', { config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/auth/register', { bodyLimit: REGISTRATION_PROOF_BODY_LIMIT_BYTES, config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
     const schema = z.object({
       name: z.string().min(3),
       characterName: z.string().min(3),
