@@ -72,7 +72,7 @@ test('Discord único no cadastro ignora diferença de maiúsculas e minúsculas'
   await resetDb();
   await prisma.role.create({ data: { key: 'USER', name: 'Usuário' } });
 
-  const screenshot = { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' };
+  const screenshot = { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' };
   const first = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'User One', characterName: 'Cidadao Um', discordId: 'Discord.Cad.1', characterPhone: '555-0201', screenshot, password: '12345678' } });
   assert.equal(first.statusCode, 201, first.body);
 

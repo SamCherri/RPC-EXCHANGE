@@ -2,10 +2,10 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z, ZodError } from 'zod';
 import { loginUser, registerUser } from '../services/auth-service.js';
 import { prisma } from '../lib/prisma.js';
-import { createHash } from 'node:crypto';
+import { normalizeRegistrationProof } from '../services/registration-proof-service.js';
 
 export async function authRoutes(app: FastifyInstance) {
-  app.post('/auth/register', { config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 10, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/auth/register', { config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
     const schema = z.object({
       name: z.string().min(3),
       characterName: z.string().min(3),
@@ -21,12 +21,12 @@ export async function authRoutes(app: FastifyInstance) {
       if (body.passwordConfirmation !== undefined && body.passwordConfirmation !== body.password) {
         return reply.code(400).send({ message: 'A confirmação de senha não confere.' });
       }
-      const cleanData = body.screenshot.data.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
+      const proof = normalizeRegistrationProof(body.screenshot);
       const user = await registerUser(body.name, body.characterName, body.discordId, body.characterPhone, body.password, {
-        mimeType: body.screenshot.mimeType,
-        fileName: body.screenshot.fileName,
-        data: cleanData,
-        checksum: createHash('sha256').update(cleanData).digest('hex'),
+        mimeType: proof.mimeType,
+        fileName: proof.fileName,
+        data: proof.data,
+        checksum: proof.checksum,
       });
       await app.logAdmin({ action: 'CREATE_ACCOUNT', entity: 'User', userId: user.id, reason: 'Cadastro inicial' });
 

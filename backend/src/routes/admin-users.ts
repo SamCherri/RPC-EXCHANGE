@@ -2,14 +2,25 @@ import { Prisma } from '@prisma/client';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { decodeStoredRegistrationProof } from '../services/registration-proof-service.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'] as const;
+const REGISTRATION_REVIEW_ROLES = ['ADMIN', 'SUPER_ADMIN'] as const;
 
 function ensureAdmin(reply: FastifyReply, roles: string[]) {
   if (!ADMIN_ROLES.some((role) => roles.includes(role))) {
     reply.code(403).send({ message: 'Sem permissão administrativa.' });
+    return false;
+  }
+
+  return true;
+}
+
+function ensureRegistrationReviewer(reply: FastifyReply, roles: string[]) {
+  if (!REGISTRATION_REVIEW_ROLES.some((role) => roles.includes(role))) {
+    reply.code(403).send({ message: 'Sem permissão para revisar evidências de cadastro.' });
     return false;
   }
 
@@ -156,7 +167,7 @@ export async function adminUsersRoutes(app: FastifyInstance) {
   app.get('/users/pending-registrations', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!ensureAdmin(reply, roles)) return;
+    if (!ensureRegistrationReviewer(reply, roles)) return;
     const users = await prisma.user.findMany({
       where: { approvalStatus: { in: ['PENDING', 'NEEDS_CORRECTION'] } },
       select: { id: true, name: true, email: true, characterName: true, bankAccountNumber: true, discordId: true, characterPhone: true, approvalStatus: true, approvalNote: true, createdAt: true, registrationProof: { select: { id: true, mimeType: true, fileName: true, checksum: true, updatedAt: true } } },
@@ -169,17 +180,35 @@ export async function adminUsersRoutes(app: FastifyInstance) {
   app.get('/users/:id/registration-proof', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!ensureAdmin(reply, roles)) return;
+    if (!ensureRegistrationReviewer(reply, roles)) return;
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const proof = await prisma.registrationProof.findUnique({ where: { userId: id } });
     if (!proof) return reply.code(404).send({ message: 'Comprovante não encontrado.' });
-    return reply.header('Content-Type', proof.mimeType).send(Buffer.from(proof.data, 'base64'));
+    return reply
+      .header('Content-Type', proof.mimeType)
+      .header('Cache-Control', 'no-store')
+      .header('X-Content-Type-Options', 'nosniff')
+      .send(decodeStoredRegistrationProof(proof.data));
+  });
+
+  app.get('/registration-proofs/:proofId', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    const roles = authRequest.user.roles ?? [];
+    if (!ensureRegistrationReviewer(reply, roles)) return;
+    const { proofId } = z.object({ proofId: z.string().min(1) }).parse(request.params);
+    const proof = await prisma.registrationProof.findUnique({ where: { id: proofId } });
+    if (!proof) return reply.code(404).send({ message: 'Comprovante não encontrado.' });
+    return reply
+      .header('Content-Type', proof.mimeType)
+      .header('Cache-Control', 'no-store')
+      .header('X-Content-Type-Options', 'nosniff')
+      .send(decodeStoredRegistrationProof(proof.data));
   });
 
   app.patch('/users/:id/approval', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!ensureAdmin(reply, roles)) return;
+    if (!ensureRegistrationReviewer(reply, roles)) return;
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z.object({ status: z.enum(['APPROVED', 'NEEDS_CORRECTION', 'REJECTED']), note: z.string().min(3).optional() }).parse(request.body);
     const previous = await prisma.user.findUnique({ where: { id }, select: { approvalStatus: true, approvalNote: true } });

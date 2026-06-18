@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { normalizeRegistrationProof } from '../services/registration-proof-service.js';
 
  type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
@@ -37,15 +37,14 @@ export async function userRoutes(app: FastifyInstance) {
     return { status: user.approvalStatus, note: user.approvalNote, hasScreenshot: Boolean(user.registrationProof), screenshotUpdatedAt: user.registrationProof?.updatedAt ?? null, financialPermissions: user.financialPermissions.filter((p) => !p.revokedAt).map((p) => p.permission) };
   });
 
-  app.put('/registration/screenshot', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.put('/registration/screenshot', { preHandler: [app.authenticate], config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '10 minutes' } } }, async (request, reply) => {
     const userId = (request as AuthRequest).user.sub;
     const body = z.object({ screenshot: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']), fileName: z.string().optional(), data: z.string().min(20) }) }).parse(request.body);
-    const cleanData = body.screenshot.data.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
-    const checksum = createHash('sha256').update(cleanData).digest('hex');
+    const normalizedProof = normalizeRegistrationProof(body.screenshot);
     const proof = await prisma.registrationProof.upsert({
       where: { userId },
-      update: { mimeType: body.screenshot.mimeType, fileName: body.screenshot.fileName, data: cleanData, checksum },
-      create: { userId, mimeType: body.screenshot.mimeType, fileName: body.screenshot.fileName, data: cleanData, checksum },
+      update: { mimeType: normalizedProof.mimeType, fileName: normalizedProof.fileName, data: normalizedProof.data, checksum: normalizedProof.checksum },
+      create: { userId, mimeType: normalizedProof.mimeType, fileName: normalizedProof.fileName, data: normalizedProof.data, checksum: normalizedProof.checksum },
     });
     await prisma.user.update({ where: { id: userId }, data: { approvalStatus: 'PENDING', approvalNote: null } });
     await prisma.adminLog.create({ data: { userId, action: 'REGISTRATION_SCREENSHOT_RESUBMITTED', entity: `RegistrationProof:${proof.id}`, reason: 'Usuário reenviou screenshot de cadastro.', ip: request.ip, userAgent: request.headers['user-agent'] ?? null } });
