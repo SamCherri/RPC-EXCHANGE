@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
+import { resetTestDatabase } from './helpers/reset-test-db.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL é obrigatório para testes de integração.');
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -9,7 +10,9 @@ const [{ buildApp }, { prisma }] = await Promise.all([import('../src/app.js'), i
 const app = buildApp();
 const PASSWORD = 'Admin@123';
 
-async function resetDb() { await prisma.$transaction([prisma.rpcLimitOrder.deleteMany(), prisma.rpcExchangeTrade.deleteMany(), prisma.rpcMarketState.deleteMany(), prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.company.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(), prisma.wallet.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany()]); }
+async function resetDb() {
+  await resetTestDatabase(prisma);
+}
 async function mkRole(key: string) { return prisma.role.create({ data: { key, name: key } }); }
 async function mkUser(email: string) { return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash(PASSWORD, 10), wallet: { create: {} } } }); }
 async function auth(userId: string, roles: string[]) { return app.jwt.sign({ sub: userId, roles }); }

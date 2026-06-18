@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { escapeCsvValue } from '../src/services/csv-export-service.js';
+import { resetTestDatabase } from './helpers/reset-test-db.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL é obrigatório');
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -10,9 +11,7 @@ const [{ buildApp }, { prisma }] = await Promise.all([import('../src/app.js'), i
 const app = buildApp();
 
 async function resetDb() {
-  await prisma.$transaction([
-    prisma.rpcLimitOrder.deleteMany(), prisma.rpcExchangeTrade.deleteMany(), prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.company.deleteMany(), prisma.coinTransfer.deleteMany(), prisma.transaction.deleteMany(), prisma.withdrawalRequest.deleteMany(), prisma.adminLog.deleteMany(), prisma.brokerAccount.deleteMany(), prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(), prisma.userRole.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(),
-  ]);
+  await resetTestDatabase(prisma);
 }
 const mkRole = (key: string) => prisma.role.create({ data: { key, name: key } });
 async function mkUser(email: string) { return prisma.user.create({ data: { email, name: email, passwordHash: await bcrypt.hash('123456', 10), wallet: { create: {} } } }); }

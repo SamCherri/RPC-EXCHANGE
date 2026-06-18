@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { Decimal } from '@prisma/client/runtime/library';
 import { COMPANY_MARKET_MAX_OPEN_ORDERS_PER_USER, MAX_PENDING_WITHDRAWALS_PER_USER, MAX_PROJECT_CREATIONS_PER_DAY, MAX_REPORTS_PER_HOUR, RPC_MARKET_MAX_OPEN_ORDERS_PER_USER } from '../src/config/anti-abuse-limits.js';
+import { resetTestDatabase } from './helpers/reset-test-db.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL é obrigatório para testes de integração.');
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -11,14 +12,7 @@ const [{ buildApp }, { prisma }] = await Promise.all([import('../src/app.js'), i
 const app = buildApp();
 
 async function resetDb() {
-  await prisma.$transaction([
-    prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.rpcLimitOrder.deleteMany(), prisma.rpcExchangeTrade.deleteMany(), prisma.withdrawalRequest.deleteMany(),
-    prisma.testModeReport.deleteMany(), prisma.companyOperation.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.companyBoostInjection.deleteMany(), prisma.companyBoostAccount.deleteMany(), prisma.company.deleteMany(),
-    prisma.transaction.deleteMany(), prisma.registrationProof.deleteMany(), prisma.adminLog.deleteMany(), prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(),
-    prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(), prisma.systemModeConfig.deleteMany(),
-  ]);
-  assert.equal(await prisma.registrationProof.count(), 0);
-  assert.equal(await prisma.adminLog.count(), 0);
+  await resetTestDatabase(prisma);
 }
 
 async function mkUser(email: string) {

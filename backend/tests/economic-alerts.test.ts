@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
+import { resetTestDatabase } from './helpers/reset-test-db.js';
 
 if (process.env.NODE_ENV === 'production') throw new Error('Testes não podem rodar em produção.');
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL é obrigatório para testes de integração.');
@@ -15,18 +16,7 @@ const app = buildApp();
 const PASSWORD = 'Admin@123';
 
 async function resetDb() {
-  await prisma.$transaction([
-    prisma.rpcLimitOrder.deleteMany(),
-    prisma.rpcExchangeTrade.deleteMany(),
-    prisma.trade.deleteMany(),
-    prisma.marketOrder.deleteMany(),
-    prisma.withdrawalRequest.deleteMany(),
-    prisma.wallet.deleteMany(),
-    prisma.userRole.deleteMany(),
-    prisma.role.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.platformAccount.deleteMany(),
-  ]);
+  await resetTestDatabase(prisma);
 }
 
 async function mkRole(key: string) { return prisma.role.create({ data: { key, name: key } }); }

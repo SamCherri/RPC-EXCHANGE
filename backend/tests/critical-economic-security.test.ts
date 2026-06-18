@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { RPC_MARKET_MAX_OPEN_ORDERS_PER_USER } from '../src/config/anti-abuse-limits.js';
+import { resetTestDatabase } from './helpers/reset-test-db.js';
 
 if (process.env.NODE_ENV === 'production') throw new Error('Testes não podem rodar em produção.');
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL é obrigatório para testes de integração.');
@@ -17,43 +18,7 @@ const app = buildApp();
 const ADMIN_PASSWORD = 'Admin@123';
 
 async function resetDb() {
-  await prisma.$transaction([
-    prisma.rpcLimitOrder.deleteMany(),
-    prisma.rpcExchangeTrade.deleteMany(),
-    prisma.rpcMarketState.deleteMany(),
-    prisma.feeDistribution.deleteMany(),
-    prisma.trade.deleteMany(),
-    prisma.marketOrder.deleteMany(),
-    prisma.companyOperation.deleteMany(),
-    prisma.companyCapitalFlowEntry.deleteMany(),
-    prisma.companyHolding.deleteMany(),
-    prisma.companyInitialOffer.deleteMany(),
-    prisma.companyRevenueAccount.deleteMany(),
-    prisma.companyBoostInjection.deleteMany(),
-    prisma.companyBoostAccount.deleteMany(),
-    prisma.company.deleteMany(),
-    prisma.coinTransfer.deleteMany(),
-    prisma.coinIssuance.deleteMany(),
-    prisma.transaction.deleteMany(),
-    prisma.withdrawalRequest.deleteMany(),
-    prisma.adminLog.deleteMany(),
-    prisma.registrationProof.deleteMany(),
-    prisma.brokerAccount.deleteMany(),
-    prisma.wallet.deleteMany(),
-    prisma.userFinancialPermission.deleteMany(),
-    prisma.userRole.deleteMany(),
-    prisma.rolePermission.deleteMany(),
-    prisma.permission.deleteMany(),
-    prisma.role.deleteMany(),
-    prisma.testModeReport.deleteMany(),
-    prisma.testModeTrade.deleteMany(),
-    prisma.testModeWallet.deleteMany(),
-    prisma.testModeMarketState.deleteMany(),
-    prisma.systemModeConfig.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.platformAccount.deleteMany(),
-    prisma.treasuryAccount.deleteMany(),
-  ]);
+  await resetTestDatabase(prisma);
 }
 
 async function mkUser(email: string, name = 'User') {
