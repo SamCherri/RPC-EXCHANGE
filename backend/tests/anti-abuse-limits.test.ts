@@ -14,9 +14,11 @@ async function resetDb() {
   await prisma.$transaction([
     prisma.trade.deleteMany(), prisma.marketOrder.deleteMany(), prisma.rpcLimitOrder.deleteMany(), prisma.rpcExchangeTrade.deleteMany(), prisma.withdrawalRequest.deleteMany(),
     prisma.testModeReport.deleteMany(), prisma.companyOperation.deleteMany(), prisma.companyHolding.deleteMany(), prisma.companyInitialOffer.deleteMany(), prisma.companyRevenueAccount.deleteMany(), prisma.companyBoostInjection.deleteMany(), prisma.companyBoostAccount.deleteMany(), prisma.company.deleteMany(),
-    prisma.transaction.deleteMany(), prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(),
+    prisma.transaction.deleteMany(), prisma.registrationProof.deleteMany(), prisma.adminLog.deleteMany(), prisma.wallet.deleteMany(), prisma.userFinancialPermission.deleteMany(),
     prisma.userRole.deleteMany(), prisma.rolePermission.deleteMany(), prisma.permission.deleteMany(), prisma.role.deleteMany(), prisma.user.deleteMany(), prisma.platformAccount.deleteMany(), prisma.treasuryAccount.deleteMany(), prisma.testModeTrade.deleteMany(), prisma.testModeWallet.deleteMany(), prisma.testModeMarketState.deleteMany(), prisma.systemModeConfig.deleteMany(),
   ]);
+  assert.equal(await prisma.registrationProof.count(), 0);
+  assert.equal(await prisma.adminLog.count(), 0);
 }
 
 async function mkUser(email: string) {
