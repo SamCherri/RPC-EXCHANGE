@@ -31,6 +31,7 @@ async function resetDb() {
     prisma.adminLog.deleteMany(),
     prisma.brokerAccount.deleteMany(),
     prisma.wallet.deleteMany(),
+    prisma.userFinancialPermission.deleteMany(),
     prisma.userRole.deleteMany(),
     prisma.rolePermission.deleteMany(),
     prisma.permission.deleteMany(),
