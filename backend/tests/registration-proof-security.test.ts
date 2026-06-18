@@ -128,7 +128,7 @@ test('reenvio com screenshot inválido retorna 400 sem substituir evidência exi
   await prisma.registrationProof.create({ data: { userId: user.id, mimeType: 'image/png', fileName: 'old.png', data: VALID_PNG_BASE64, checksum: 'old-checksum' } });
   const token = await tokenFor(user.discordId!);
 
-  const response = await app.inject({ method: 'PUT', url: '/api/registration/screenshot', headers: { authorization: `Bearer ${token}` }, payload: { screenshot: { mimeType: 'image/png', fileName: 'fake.png', data: Buffer.from('nao e imagem').toString('base64') } } });
+  const response = await app.inject({ method: 'PUT', url: '/api/registration/screenshot', headers: { authorization: `Bearer ${token}` }, payload: { screenshot: { mimeType: 'image/png', fileName: 'fake.png', data: Buffer.from('conteudo textual suficientemente longo, mas ainda nao e uma imagem real').toString('base64') } } });
   assert.equal(response.statusCode, 400, response.body);
   assert.match(response.json().message, /não foi reconhecido/);
 
