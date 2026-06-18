@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
+import { resetTestDatabase } from './helpers/reset-test-db.js';
 
 if (!process.env.TEST_DATABASE_URL) throw new Error('TEST_DATABASE_URL é obrigatório para testes de integração.');
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -9,46 +10,23 @@ const [{ buildApp }, { prisma }] = await Promise.all([import('../src/app.js'), i
 const app = buildApp();
 
 async function resetDb() {
-  await prisma.$transaction([
-    prisma.rpcLimitOrder.deleteMany(),
-    prisma.rpcExchangeTrade.deleteMany(),
-    prisma.rpcMarketState.deleteMany(),
-    prisma.feeDistribution.deleteMany(),
-    prisma.trade.deleteMany(),
-    prisma.marketOrder.deleteMany(),
-    prisma.companyOperation.deleteMany(),
-    prisma.companyHolding.deleteMany(),
-    prisma.companyInitialOffer.deleteMany(),
-    prisma.companyRevenueAccount.deleteMany(),
-    prisma.companyBoostInjection.deleteMany(),
-    prisma.companyBoostAccount.deleteMany(),
-    prisma.company.deleteMany(),
-    prisma.coinTransfer.deleteMany(),
-    prisma.coinIssuance.deleteMany(),
-    prisma.transaction.deleteMany(),
-    prisma.withdrawalRequest.deleteMany(),
-    prisma.adminLog.deleteMany(),
-    prisma.brokerAccount.deleteMany(),
-    prisma.wallet.deleteMany(),
-    prisma.userFinancialPermission.deleteMany(),
-    prisma.userRole.deleteMany(),
-    prisma.rolePermission.deleteMany(),
-    prisma.permission.deleteMany(),
-    prisma.role.deleteMany(),
-    prisma.testModeReport.deleteMany(),
-    prisma.testModeTrade.deleteMany(),
-    prisma.testModeWallet.deleteMany(),
-    prisma.testModeMarketState.deleteMany(),
-    prisma.systemModeConfig.deleteMany(),
-    prisma.user.deleteMany(),
-    prisma.platformAccount.deleteMany(),
-    prisma.treasuryAccount.deleteMany(),
-  ]);
+  await resetTestDatabase(prisma);
+}
+
+async function grantProjectCreatePermission(userId: string) {
+  await prisma.userFinancialPermission.create({
+    data: {
+      userId,
+      permission: 'PROJECT_CREATE',
+      grantedById: userId,
+      reason: 'Permissão PROJECT_CREATE em fixture de teste de moderação',
+    },
+  });
 }
 
 async function mkUser(email: string) {
   const user = await prisma.user.create({ data: { email, name: email, approvalStatus: 'APPROVED', passwordHash: await bcrypt.hash('12345678', 10), wallet: { create: {} } } });
-  await grantTestFinancialPermissions(user.id);
+  await grantProjectCreatePermission(user.id);
   return user;
 }
 async function token(userId: string, roles: string[] = ['USER']) { return app.jwt.sign({ sub: userId, roles }); }
