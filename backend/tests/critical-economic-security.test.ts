@@ -676,6 +676,71 @@ test('aporte institucional RPC é atômico, rastreável e limpo pelo resetDb', a
   assert.equal(await prisma.adminLog.count(), 0);
 });
 
+
+test('exclusão normal preserva aporte institucional e permite projeto sem histórico', async () => {
+  await resetDb();
+
+  const rAdmin = await mkRole('ADMIN');
+  const rUser = await mkRole('USER');
+  const admin = await mkUser('safe-delete-admin@test.local');
+  const founder = await mkUser('safe-delete-founder@test.local');
+  await prisma.userRole.createMany({ data: [
+    { userId: admin.id, roleId: rAdmin.id },
+    { userId: founder.id, roleId: rUser.id },
+  ] });
+  await prisma.wallet.update({ where: { userId: founder.id }, data: { rpcAvailableBalance: 100 } });
+
+  const adminToken = await token(admin.id, ['ADMIN']);
+  const founderToken = await token(founder.id, ['USER']);
+
+  const companyWithContribution = await prisma.company.create({
+    data: {
+      name: 'Aporte Seguro', ticker: 'APSEG', description: 'desc', sector: 'setor', founderUserId: founder.id, status: 'ACTIVE', totalShares: 1000,
+      circulatingShares: 0, ownerSharePercent: 40, publicOfferPercent: 60, ownerShares: 400, publicOfferShares: 600, availableOfferShares: 600,
+      initialPrice: 10, currentPrice: 10, buyFeePercent: 1, sellFeePercent: 1, fictitiousMarketCap: 10000, approvedAt: new Date(),
+      revenueAccount: { create: {} }, initialOffer: { create: { totalShares: 600, availableShares: 600 } },
+    },
+  });
+
+  const contribution = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${companyWithContribution.id}/contribute`, headers: { authorization: `Bearer ${founderToken}` }, payload: { amountRpc: 40, reason: 'aporte institucional preservado no historico' } });
+  assert.equal(contribution.statusCode, 200, contribution.body);
+
+  const revenueBeforeDelete = await prisma.companyRevenueAccount.findUniqueOrThrow({ where: { companyId: companyWithContribution.id } });
+  const founderWallet = await prisma.wallet.findUniqueOrThrow({ where: { userId: founder.id } });
+  assert.equal(Number(revenueBeforeDelete.balance), 40);
+  assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: companyWithContribution.id } }), 1);
+  assert.equal(await prisma.transaction.count({ where: { walletId: founderWallet.id, type: 'PROJECT_RPC_CONTRIBUTION' } }), 1);
+  assert.equal(await prisma.adminLog.count({ where: { action: 'PROJECT_RPC_CONTRIBUTION', entity: 'CompanyRevenueAccount' } }), 1);
+
+  const blockedDelete = await app.inject({ method: 'DELETE', url: `/api/admin/tokens/${companyWithContribution.id}`, headers: { authorization: `Bearer ${adminToken}` } });
+  assert.equal(blockedDelete.statusCode, 400, blockedDelete.body);
+  assert.match(blockedDelete.body, /possui histórico e não pode ser excluído definitivamente/i);
+
+  const revenueAfterBlockedDelete = await prisma.companyRevenueAccount.findUniqueOrThrow({ where: { companyId: companyWithContribution.id } });
+  assert.equal(await prisma.company.count({ where: { id: companyWithContribution.id } }), 1);
+  assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: companyWithContribution.id } }), 1);
+  assert.equal(await prisma.transaction.count({ where: { walletId: founderWallet.id, type: 'PROJECT_RPC_CONTRIBUTION' } }), 1);
+  assert.equal(await prisma.adminLog.count({ where: { action: 'PROJECT_RPC_CONTRIBUTION', entity: 'CompanyRevenueAccount' } }), 1);
+  assert.equal(Number(revenueAfterBlockedDelete.balance), Number(revenueBeforeDelete.balance));
+  assert.equal(await prisma.adminLog.count({ where: { action: 'ADMIN_TOKEN_DELETED', entity: `Company:${companyWithContribution.id}` } }), 0);
+
+  const companyWithoutHistory = await prisma.company.create({
+    data: {
+      name: 'Sem Historico', ticker: 'SEMH1', description: 'desc', sector: 'setor', founderUserId: founder.id, status: 'ACTIVE', totalShares: 1000,
+      circulatingShares: 0, ownerSharePercent: 40, publicOfferPercent: 60, ownerShares: 400, publicOfferShares: 600, availableOfferShares: 600,
+      initialPrice: 10, currentPrice: 10, buyFeePercent: 1, sellFeePercent: 1, fictitiousMarketCap: 10000, approvedAt: new Date(),
+      revenueAccount: { create: {} }, initialOffer: { create: { totalShares: 600, availableShares: 600 } },
+    },
+  });
+
+  const allowedDelete = await app.inject({ method: 'DELETE', url: `/api/admin/tokens/${companyWithoutHistory.id}`, headers: { authorization: `Bearer ${adminToken}` } });
+  assert.equal(allowedDelete.statusCode, 200, allowedDelete.body);
+  assert.equal(await prisma.company.count({ where: { id: companyWithoutHistory.id } }), 0);
+  assert.equal(await prisma.companyRevenueAccount.count({ where: { companyId: companyWithoutHistory.id } }), 0);
+  assert.equal(await prisma.companyInitialOffer.count({ where: { companyId: companyWithoutHistory.id } }), 0);
+  assert.equal(await prisma.adminLog.count({ where: { action: 'ADMIN_TOKEN_DELETED', entity: `Company:${companyWithoutHistory.id}` } }), 1);
+});
+
 test('force delete de projeto de teste só para SUPER_ADMIN e apaga histórico vinculado', async () => {
   await resetDb();
 

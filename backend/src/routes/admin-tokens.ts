@@ -62,6 +62,7 @@ function hasEconomicHistory(company: {
   orders: number;
   holdingsWithShares: number;
   feeDistributions: number;
+  capitalFlowEntries: number;
   revenueBalance: Decimal;
   revenueFees: Decimal;
   economicOps: number;
@@ -71,6 +72,7 @@ function hasEconomicHistory(company: {
     || company.orders > 0
     || company.holdingsWithShares > 0
     || company.feeDistributions > 0
+    || company.capitalFlowEntries > 0
     || company.revenueBalance.greaterThan(0)
     || company.revenueFees.greaterThan(0)
     || company.economicOps > 0
@@ -597,39 +599,40 @@ export async function adminTokensRoutes(app: FastifyInstance) {
     try {
       const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
 
-      const company = await prisma.company.findUnique({ where: { id } });
-      if (!company) return reply.code(404).send({ message: 'Mercado não encontrado.' });
+      const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await tx.$queryRaw`SELECT id FROM "Company" WHERE id = ${id} FOR UPDATE`;
+        const company = await tx.company.findUnique({ where: { id } });
+        if (!company) return { deleted: false as const, notFound: true as const };
 
-      const [trades, orders, holdingsWithShares, feeDistributions, operations, initialOffer, revenue] = await Promise.all([
-        prisma.trade.count({ where: { companyId: id } }),
-        prisma.marketOrder.count({ where: { companyId: id } }),
-        prisma.companyHolding.count({ where: { companyId: id, shares: { gt: 0 } } }),
-        prisma.feeDistribution.count({ where: { companyId: id } }),
-        prisma.companyOperation.findMany({ where: { companyId: id }, select: { type: true, description: true } }),
-        prisma.companyInitialOffer.findUnique({ where: { companyId: id } }),
-        prisma.companyRevenueAccount.findUnique({ where: { companyId: id } }),
-      ]);
+        const [trades, orders, holdingsWithShares, feeDistributions, capitalFlowEntries, operations, initialOffer, revenue] = await Promise.all([
+          tx.trade.count({ where: { companyId: id } }),
+          tx.marketOrder.count({ where: { companyId: id } }),
+          tx.companyHolding.count({ where: { companyId: id, shares: { gt: 0 } } }),
+          tx.feeDistribution.count({ where: { companyId: id } }),
+          tx.companyCapitalFlowEntry.count({ where: { companyId: id } }),
+          tx.companyOperation.findMany({ where: { companyId: id }, select: { type: true, description: true } }),
+          tx.companyInitialOffer.findUnique({ where: { companyId: id } }),
+          tx.companyRevenueAccount.findUnique({ where: { companyId: id } }),
+        ]);
 
-      const economicOps = operations.filter((operation: { type: string; description: string }) => !(operation.type === 'ADMIN_APPROVE' && operation.description.includes('manualmente por administrador'))).length;
+        const economicOps = operations.filter((operation: { type: string; description: string }) => !(operation.type === 'ADMIN_APPROVE' && operation.description.includes('manualmente por administrador'))).length;
 
-      const blockedByHistory = hasEconomicHistory({
-        trades,
-        orders,
-        holdingsWithShares,
-        feeDistributions,
-        revenueBalance: revenue?.balance ?? new Decimal(0),
-        revenueFees: revenue?.totalReceivedFees ?? new Decimal(0),
-        economicOps,
-        initialOfferMoved: Boolean(initialOffer && initialOffer.availableShares < initialOffer.totalShares),
-      });
-
-      if (blockedByHistory) {
-        return reply.code(400).send({
-          message: 'Este mercado possui histórico e não pode ser excluído definitivamente. Use Encerrar mercado.',
+        const blockedByHistory = hasEconomicHistory({
+          trades,
+          orders,
+          holdingsWithShares,
+          feeDistributions,
+          capitalFlowEntries,
+          revenueBalance: revenue?.balance ?? new Decimal(0),
+          revenueFees: revenue?.totalReceivedFees ?? new Decimal(0),
+          economicOps,
+          initialOfferMoved: Boolean(initialOffer && initialOffer.availableShares < initialOffer.totalShares),
         });
-      }
 
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        if (blockedByHistory) {
+          throw new Error('Este mercado possui histórico e não pode ser excluído definitivamente. Use Encerrar mercado.');
+        }
+
         await tx.adminLog.create({
           data: {
             userId: authRequest.user.sub,
@@ -644,10 +647,13 @@ export async function adminTokensRoutes(app: FastifyInstance) {
 
         await tx.companyHolding.deleteMany({ where: { companyId: id, shares: { lte: 0 } } });
         await tx.companyInitialOffer.deleteMany({ where: { companyId: id } });
-        await tx.companyCapitalFlowEntry.deleteMany({ where: { companyId: id } });
         await tx.companyRevenueAccount.deleteMany({ where: { companyId: id } });
         await tx.company.delete({ where: { id } });
+
+        return { deleted: true as const, notFound: false as const };
       });
+
+      if (result.notFound) return reply.code(404).send({ message: 'Mercado não encontrado.' });
 
       return { message: 'Mercado excluído definitivamente com segurança.' };
     } catch (error) {
