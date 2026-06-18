@@ -46,9 +46,20 @@ async function resetDb() {
   ]);
 }
 
+async function grantProjectCreatePermission(userId: string) {
+  await prisma.userFinancialPermission.create({
+    data: {
+      userId,
+      permission: 'PROJECT_CREATE',
+      grantedById: userId,
+      reason: 'Permissão PROJECT_CREATE em fixture de teste de moderação',
+    },
+  });
+}
+
 async function mkUser(email: string) {
   const user = await prisma.user.create({ data: { email, name: email, approvalStatus: 'APPROVED', passwordHash: await bcrypt.hash('12345678', 10), wallet: { create: {} } } });
-  await grantTestFinancialPermissions(user.id);
+  await grantProjectCreatePermission(user.id);
   return user;
 }
 async function token(userId: string, roles: string[] = ['USER']) { return app.jwt.sign({ sub: userId, roles }); }
