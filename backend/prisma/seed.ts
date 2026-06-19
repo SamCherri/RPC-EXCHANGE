@@ -7,6 +7,11 @@ function normalizeSeedDiscord(discordId: string) {
   return discordId.trim().replace(/^@+/, '').replace(/\s+/g, '').toLowerCase();
 }
 
+function isTrustedPlatformOwnerCandidate(user: { approvalStatus: string; roles: Array<{ role: { key: string } }> }) {
+  const trustedBootstrapRoles = new Set(['SUPER_ADMIN', 'ADMIN', 'COIN_CHIEF_ADMIN']);
+  return user.approvalStatus === 'APPROVED' && user.roles.some((item) => trustedBootstrapRoles.has(item.role.key));
+}
+
 async function fillMissingDiscordId(userId: string, discordId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { discordId: true } });
   if (!user || user.discordId) return;
@@ -220,6 +225,8 @@ async function main() {
 
     if (!owner) {
       console.warn('[seed] PLATFORM_OWNER configurado, mas nenhum usuário correspondente foi encontrado. Nenhum DEVELOPER foi atribuído.');
+    } else if (!isTrustedPlatformOwnerCandidate(owner)) {
+      console.warn('[seed] PLATFORM_OWNER corresponde a uma conta sem aprovação e role administrativa previamente confiável. Nenhum DEVELOPER foi atribuído.');
     } else {
       await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.wallet.upsert({ where: { userId: owner.id }, update: {}, create: { userId: owner.id } });
