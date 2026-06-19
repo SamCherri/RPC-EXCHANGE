@@ -34,7 +34,8 @@ export function ProjectOwnerPanel() {
     if (isSubmittingCapitalFlow) return;
     setIsSubmittingCapitalFlow(true);
     try {
-      await api(`/project-capital-flow/companies/${selectedId}/contribute`, { method: 'POST', body: JSON.stringify({ amountRpc, reason }) });
+      const idempotencyKey = crypto.randomUUID();
+      await api(`/project-capital-flow/companies/${selectedId}/contribute`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ amountRpc, reason, idempotencyKey }) });
       setMessage('Aporte RPC realizado com sucesso no caixa institucional do projeto.');
       setAmountRpc('');
       setReason('');

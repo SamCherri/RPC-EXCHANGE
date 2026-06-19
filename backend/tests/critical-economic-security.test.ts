@@ -646,17 +646,17 @@ test('aporte institucional RPC é atômico, rastreável e limpo pelo resetDb', a
   const founderToken = await token(founder.id, ['USER']);
   const otherToken = await token(other.id, ['USER']);
 
-  const invalidByOwner = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${founderToken}` }, payload: { amountRpc: 10, reason: 'curto' } });
+  const invalidByOwner = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${founderToken}`, 'idempotency-key': 'critical-capital-invalid-000000' }, payload: { amountRpc: 10, reason: 'curto' } });
   assert.equal(invalidByOwner.statusCode, 400, invalidByOwner.body);
   assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: company.id } }), 0);
   assert.equal(await prisma.transaction.count({ where: { type: 'PROJECT_RPC_CONTRIBUTION' } }), 0);
   assert.equal(await prisma.adminLog.count({ where: { action: 'PROJECT_RPC_CONTRIBUTION' } }), 0);
 
-  const forbiddenByNonFounder = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${otherToken}` }, payload: { amountRpc: 10, reason: 'aporte institucional de teste' } });
+  const forbiddenByNonFounder = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${otherToken}`, 'idempotency-key': 'critical-capital-forbidden-000000' }, payload: { amountRpc: 10, reason: 'aporte institucional de teste' } });
   assert.equal(forbiddenByNonFounder.statusCode, 403, forbiddenByNonFounder.body);
   assert.equal(await prisma.companyCapitalFlowEntry.count({ where: { companyId: company.id } }), 0);
 
-  const validContribution = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${founderToken}` }, payload: { amountRpc: 40, reason: 'aporte institucional rastreavel de teste' } });
+  const validContribution = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${company.id}/contribute`, headers: { authorization: `Bearer ${founderToken}`, 'idempotency-key': 'critical-capital-valid-000000' }, payload: { amountRpc: 40, reason: 'aporte institucional rastreavel de teste' } });
   assert.equal(validContribution.statusCode, 200, validContribution.body);
 
   const founderWalletAfter = await prisma.wallet.findUniqueOrThrow({ where: { userId: founder.id } });
@@ -702,7 +702,7 @@ test('exclusão normal preserva aporte institucional e permite projeto sem hist�
     },
   });
 
-  const contribution = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${companyWithContribution.id}/contribute`, headers: { authorization: `Bearer ${founderToken}` }, payload: { amountRpc: 40, reason: 'aporte institucional preservado no historico' } });
+  const contribution = await app.inject({ method: 'POST', url: `/api/project-capital-flow/companies/${companyWithContribution.id}/contribute`, headers: { authorization: `Bearer ${founderToken}`, 'idempotency-key': 'critical-capital-preserved-000000' }, payload: { amountRpc: 40, reason: 'aporte institucional preservado no historico' } });
   assert.equal(contribution.statusCode, 200, contribution.body);
 
   const revenueBeforeDelete = await prisma.companyRevenueAccount.findUniqueOrThrow({ where: { companyId: companyWithContribution.id } });
