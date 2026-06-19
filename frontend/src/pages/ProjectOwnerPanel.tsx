@@ -19,6 +19,7 @@ export function ProjectOwnerPanel() {
   const [error, setError] = useState('');
   const [isSubmittingCapitalFlow, setIsSubmittingCapitalFlow] = useState(false);
   const [isSubmittingLegacyBoost, setIsSubmittingLegacyBoost] = useState(false);
+  const [capitalFlowIdempotencyKey, setCapitalFlowIdempotencyKey] = useState('');
 
   const load = async () => {
     const response = await api<{ walletRpcAvailableBalance: string | number; companies: Company[] }>('/project-capital-flow/my-projects');
@@ -28,17 +29,20 @@ export function ProjectOwnerPanel() {
   };
 
   useEffect(() => { load().catch((err) => setError((err as Error).message)); }, []);
+  useEffect(() => { setCapitalFlowIdempotencyKey(''); }, [selectedId, amountRpc, reason]);
 
   async function submitCapitalFlow(event: FormEvent) {
     event.preventDefault();
     if (isSubmittingCapitalFlow) return;
     setIsSubmittingCapitalFlow(true);
     try {
-      const idempotencyKey = crypto.randomUUID();
+      const idempotencyKey = capitalFlowIdempotencyKey || crypto.randomUUID();
+      if (!capitalFlowIdempotencyKey) setCapitalFlowIdempotencyKey(idempotencyKey);
       await api(`/project-capital-flow/companies/${selectedId}/contribute`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: JSON.stringify({ amountRpc, reason, idempotencyKey }) });
       setMessage('Aporte RPC realizado com sucesso no caixa institucional do projeto.');
       setAmountRpc('');
       setReason('');
+      setCapitalFlowIdempotencyKey('');
       await load();
     } catch (err) { setError((err as Error).message); } finally { setIsSubmittingCapitalFlow(false); }
   }
