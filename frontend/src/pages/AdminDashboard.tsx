@@ -318,8 +318,8 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
         </div>
       )}
 
-      {tab === 'users' && <AdminUsersPanel onPermissionsUpdated={onPermissionsUpdated} mode="users" />}
-      {tab === 'brokers' && <AdminUsersPanel onPermissionsUpdated={onPermissionsUpdated} mode="brokers" />}
+      {tab === 'users' && <AdminUsersPanel currentUserRoles={currentUserRoles} onPermissionsUpdated={onPermissionsUpdated} mode="users" />}
+      {tab === 'brokers' && <AdminUsersPanel currentUserRoles={currentUserRoles} onPermissionsUpdated={onPermissionsUpdated} mode="brokers" />}
       {tab === 'tokens' && <AdminTokensPanel currentUserRoles={currentUserRoles} />}
       {tab === 'withdrawals' && <AdminWithdrawalsPanel />}
 

@@ -28,6 +28,7 @@ type UserRow = {
 const ALL_ROLES = ['USER', 'VIRTUAL_BROKER', 'BUSINESS_OWNER', 'AUDITOR', 'ADMIN', 'COIN_CHIEF_ADMIN', 'SUPER_ADMIN'];
 
 type AdminUsersPanelProps = {
+  currentUserRoles: string[];
   onPermissionsUpdated: () => Promise<void>;
   mode?: 'users' | 'brokers';
 };
@@ -46,7 +47,7 @@ function getCurrentUserIdFromToken(): string | null {
   }
 }
 
-export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminUsersPanelProps) {
+export function AdminUsersPanel({ currentUserRoles, onPermissionsUpdated, mode = 'users' }: AdminUsersPanelProps) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,7 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const canReviewRegistrations = currentUserRoles.some((role) => ['ADMIN', 'SUPER_ADMIN'].includes(role.toUpperCase()));
   const brokers = useMemo(() => users.filter((user) => user.roles.includes('VIRTUAL_BROKER')), [users]);
 
   function toggleRole(role: string) {
@@ -207,7 +209,7 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
         <button className="button-primary" type="submit">{mode === 'brokers' ? 'Buscar corretores' : 'Buscar usuários'}</button>
       </form>
 
-      <label className="admin-modal-field"><span>Nota de aprovação/correção</span><input value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} /></label>
+      {canReviewRegistrations && <label className="admin-modal-field"><span>Nota de aprovação/correção</span><input value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} /></label>}
       {error && <p className="status-message error">{error}</p>}
       {success && <p className="status-message success">{success}</p>}
       {loading && <p className="info-text">Carregando usuários...</p>}
@@ -230,9 +232,11 @@ export function AdminUsersPanel({ onPermissionsUpdated, mode = 'users' }: AdminU
             <p>Pendente saque: {user.wallet.pendingWithdrawalBalance}</p>
             <div className="action-grid">
               <button type="button" className="button-primary" onClick={() => startEditingRoles(user)}>Editar cargos</button>
-              <button type="button" className="button-secondary" onClick={() => openRegistrationProof(user)}>Abrir screenshot</button>
-              <button type="button" className="button-success" onClick={() => reviewRegistration(user, 'APPROVED')}>Aprovar cadastro</button>
-              <button type="button" className="button-secondary" onClick={() => reviewRegistration(user, 'NEEDS_CORRECTION')}>Pedir correção</button>
+              {canReviewRegistrations && <>
+                <button type="button" className="button-secondary" onClick={() => openRegistrationProof(user)}>Abrir screenshot</button>
+                <button type="button" className="button-success" onClick={() => reviewRegistration(user, 'APPROVED')}>Aprovar cadastro</button>
+                <button type="button" className="button-secondary" onClick={() => reviewRegistration(user, 'NEEDS_CORRECTION')}>Pedir correção</button>
+              </>}
               <button type="button" className="button-primary" onClick={() => saveFinancialPermissions(user, ['RPC_MARKET_TRADE','COMPANY_MARKET_TRADE','PROJECT_CREATE','WITHDRAWAL_REQUEST','BROKER_TRANSFER'])}>Conceder permissões financeiras</button>
               {user.isBlocked ? (
                 <button type="button" className="button-success" onClick={() => openBlockModal(user.id, 'unblock')} disabled={isSubmittingAction}>Desbloquear</button>

@@ -913,7 +913,7 @@ test('cadastro salva characterName e Discord e /auth/me retorna campos', async (
   await resetDb();
   await mkRole('USER');
 
-  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', discordId: 'discord-register-1', characterPhone: '555-0001', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, password: '12345678' } });
+  const register = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player One', characterName: 'Kenshin', discordId: 'discord-register-1', characterPhone: '555-0001', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' }, password: '12345678' } });
   assert.equal(register.statusCode, 201, register.body);
   const payload = register.json();
   assert.equal(payload.characterName, 'Kenshin');
@@ -926,7 +926,7 @@ test('cadastro salva characterName e Discord e /auth/me retorna campos', async (
   assert.equal(me.statusCode, 200, me.body);
   assert.equal(me.json().user.characterName, 'Kenshin');
 
-  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', discordId: 'discord-invalid-char', characterPhone: '555-0002', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,aW1hZ2VtLWRlLXRlc3Rl' }, password: '12345678' } });
+  const invalidCharacter = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Player Two', characterName: 'ab', discordId: 'discord-invalid-char', characterPhone: '555-0002', screenshot: { mimeType: 'image/png', fileName: 'cadastro.png', data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' }, password: '12345678' } });
   assert.equal(invalidCharacter.statusCode, 400);
 
 });
