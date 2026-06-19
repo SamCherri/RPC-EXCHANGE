@@ -2,9 +2,9 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { contributeRpcToProject, HttpError } from '../services/project-capital-flow-service.js';
+import { ADMIN_ROLES } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
-const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'];
 const isAdmin = (roles: string[]) => roles.some((r) => ADMIN_ROLES.includes(r));
 
 export async function projectCapitalFlowRoutes(app: FastifyInstance) {

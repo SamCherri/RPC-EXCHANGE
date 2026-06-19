@@ -5,10 +5,11 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { MAX_PENDING_WITHDRAWALS_PER_USER } from '../config/anti-abuse-limits.js';
+import { ADMIN_ROLES } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
-const adminRoles = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'];
+const adminRoles = ADMIN_ROLES;
 
 const requestWithdrawalSchema = z.object({
   amount: z.coerce.number().positive('Quantidade deve ser maior que zero.'),

@@ -7,6 +7,7 @@ import { RPC_MARKET_BUY_FEE_PERCENT, RPC_MARKET_SELL_FEE_PERCENT } from '../cons
 import { ensurePlatformAccount } from '../services/fee-distribution-service.js';
 import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { MAX_ORDER_CANCELS_PER_MINUTE, MAX_RPC_TRADES_PER_MINUTE, RPC_MARKET_MAX_OPEN_ORDERS_PER_USER } from '../config/anti-abuse-limits.js';
+import { COIN_CONTROL_ROLES } from '../lib/roles.js';
 
 const MIN_AMOUNT = new Decimal('0.01');
 const PRICE_SCALE = 8;
@@ -15,7 +16,7 @@ const RPC_MARKET_STATE_ID = 'RPC_MARKET_MAIN';
 const HUNDRED = new Decimal(100);
 
 
-const ADMIN_ROLES = ['SUPER_ADMIN', 'COIN_CHIEF_ADMIN'];
+const ADMIN_ROLES = COIN_CONTROL_ROLES;
 
 function hasAdminLiquidityRole(roles: string[]) {
   return roles.some((role) => ADMIN_ROLES.includes(role));

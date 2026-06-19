@@ -33,7 +33,7 @@ export function AdminTokensPanel({ currentUserRoles }: { currentUserRoles: strin
   const [deleteTokenId, setDeleteTokenId] = useState<string | null>(null);
   const [deleteTokenConfirmText, setDeleteTokenConfirmText] = useState('');
   const [isDeletingToken, setIsDeletingToken] = useState(false);
-  const isSuperAdmin = useMemo(() => currentUserRoles.map((role) => role.toUpperCase()).includes('SUPER_ADMIN'), [currentUserRoles]);
+  const isSuperAdmin = useMemo(() => currentUserRoles.map((role) => role.toUpperCase()).some((role) => ['SUPER_ADMIN', 'DEVELOPER'].includes(role)), [currentUserRoles]);
 
   const emptyForm = { founderEmail: '', name: '', ticker: '', description: '', sector: '', totalTokens: '', ownerSharePercent: '', publicOfferPercent: '', initialPrice: '', buyFeePercent: '', sellFeePercent: '' };
   const [form, setForm] = useState(emptyForm);

@@ -1,5 +1,6 @@
 const OFFICIAL_ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Oficial',
+  DEVELOPER: 'Desenvolvedor',
+  SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Admin oficial',
   COIN_CHIEF_ADMIN: 'Tesouraria oficial',
   VIRTUAL_BROKER: 'Corretor oficial',
@@ -11,7 +12,7 @@ export function isOfficialRole(roles: string[] = []): boolean {
 }
 
 export function getOfficialRoleBadge(roles: string[] = []): string | null {
-  const orderedPriority = ['SUPER_ADMIN', 'ADMIN', 'COIN_CHIEF_ADMIN', 'VIRTUAL_BROKER', 'AUDITOR'];
+  const orderedPriority = ['DEVELOPER', 'SUPER_ADMIN', 'ADMIN', 'COIN_CHIEF_ADMIN', 'VIRTUAL_BROKER', 'AUDITOR'];
   for (const role of orderedPriority) {
     if (roles.includes(role)) return OFFICIAL_ROLE_LABELS[role];
   }

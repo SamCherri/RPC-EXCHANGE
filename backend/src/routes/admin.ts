@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { getMarketHealthReport } from '../services/market-health-service.js';
 import { normalizeDiscord } from '../services/auth-service.js';
 import { toCsv } from '../services/csv-export-service.js';
+import { ADMIN_OR_AUDITOR_ROLES, ADMIN_REPORT_ROLES, ADMIN_ROLES, COIN_CONTROL_ROLES, hasAnyRole } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 type WalletRecord = Prisma.WalletGetPayload<Record<string, never>>;
@@ -15,7 +16,7 @@ type MarketOrderRecord = Prisma.MarketOrderGetPayload<Record<string, never>>;
 
 const amountSchema = z.coerce.number().positive();
 
-function requireRole(reply: FastifyReply, roles: string[], accepted: string[], message: string) {
+function requireRole(reply: FastifyReply, roles: string[], accepted: readonly string[], message: string) {
   const allowed = accepted.some((role) => roles.includes(role));
 
   if (!allowed) {
@@ -75,7 +76,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/admin/overview', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    const isAdmin = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN');
+    const isAdmin = hasAnyRole(roles, ADMIN_ROLES);
 
     if (!isAdmin) {
       return reply.code(403).send({ message: 'Sem permissão para o painel admin.' });
@@ -99,7 +100,7 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/admin/economic-alerts', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN', 'AUDITOR'], 'Sem permissão para consultar alertas econômicos.')) {
+    if (!requireRole(reply, roles, ADMIN_OR_AUDITOR_ROLES, 'Sem permissão para consultar alertas econômicos.')) {
       return;
     }
 
@@ -359,14 +360,14 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/admin/market-health', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!requireRole(reply, roles, ['SUPER_ADMIN', 'AUDITOR', 'COIN_CHIEF_ADMIN'], 'Sem permissão.')) return;
+    if (!requireRole(reply, roles, ADMIN_REPORT_ROLES, 'Sem permissão.')) return;
     return getMarketHealthReport();
   });
 
   app.get('/admin/market-health.csv', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!requireRole(reply, roles, ['SUPER_ADMIN', 'AUDITOR', 'COIN_CHIEF_ADMIN'], 'Sem permissão.')) return;
+    if (!requireRole(reply, roles, ADMIN_REPORT_ROLES, 'Sem permissão.')) return;
     const report = await getMarketHealthReport();
     const rows = Object.entries(report.sections).flatMap(([section, payload]) => payload.issues.map((issue) => ({
       section,
@@ -401,7 +402,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'], 'Sem permissão para consultar tesouraria.')) {
+    if (!requireRole(reply, roles, ADMIN_ROLES, 'Sem permissão para consultar tesouraria.')) {
       return;
     }
 
@@ -413,7 +414,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['COIN_CHIEF_ADMIN', 'SUPER_ADMIN'], 'Somente ADM Chefe da Moeda pode emitir RPC.')) {
+    if (!requireRole(reply, roles, COIN_CONTROL_ROLES, 'Somente ADM Chefe da Moeda pode emitir RPC.')) {
       return;
     }
 
@@ -472,7 +473,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'], 'Sem permissão para enviar R$ a corretor.')) {
+    if (!requireRole(reply, roles, ADMIN_ROLES, 'Sem permissão para enviar R$ a corretor.')) {
       return;
     }
 
@@ -582,7 +583,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'], 'Sem permissão para enviar R$ a usuário.')) {
+    if (!requireRole(reply, roles, ADMIN_ROLES, 'Sem permissão para enviar R$ a usuário.')) {
       return;
     }
 
@@ -732,7 +733,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['SUPER_ADMIN', 'COIN_CHIEF_ADMIN'], 'Sem permissão para retirar lucro da Exchange.')) {
+    if (!requireRole(reply, roles, COIN_CONTROL_ROLES, 'Sem permissão para retirar lucro da Exchange.')) {
       return;
     }
 
@@ -771,7 +772,7 @@ export async function adminRoutes(app: FastifyInstance) {
           throw new Error('Administrador de destino não encontrado.');
         }
 
-        const hasAdminRole = targetAdmin.roles.some(({ role }: { role: { key: string } }) => ['SUPER_ADMIN', 'ADMIN', 'COIN_CHIEF_ADMIN'].includes(role.key));
+        const hasAdminRole = targetAdmin.roles.some(({ role }: { role: { key: string } }) => ADMIN_ROLES.includes(role.key));
 
         if (!hasAdminRole) {
           throw new Error('Usuário de destino não possui permissão administrativa.');
@@ -871,7 +872,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN', 'AUDITOR'], 'Sem permissão para consultar receita da plataforma.')) {
+    if (!requireRole(reply, roles, ADMIN_OR_AUDITOR_ROLES, 'Sem permissão para consultar receita da plataforma.')) {
       return;
     }
 
@@ -889,7 +890,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN', 'AUDITOR'], 'Sem permissão para consultar receitas dos projetos/tokens.')) {
+    if (!requireRole(reply, roles, ADMIN_OR_AUDITOR_ROLES, 'Sem permissão para consultar receitas dos projetos/tokens.')) {
       return;
     }
 
@@ -922,7 +923,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
 
-    if (!requireRole(reply, roles, ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN', 'AUDITOR'], 'Sem permissão para histórico de RPC.')) {
+    if (!requireRole(reply, roles, ADMIN_OR_AUDITOR_ROLES, 'Sem permissão para histórico de RPC.')) {
       return;
     }
 

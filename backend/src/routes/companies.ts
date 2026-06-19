@@ -8,6 +8,7 @@ import { COMPANY_RULES } from '../constants/company-rules.js';
 import { distributeFee, ensureCompanyRevenueAccount } from '../services/fee-distribution-service.js';
 import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { validateDescriptionAllowed, validatePublicNameAllowed, validateTickerAllowed } from '../services/content-moderation-service.js';
+import { ADMIN_ROLES, hasAnyRole } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
@@ -29,7 +30,7 @@ const buyInitialOfferSchema = z.object({
 });
 
 function isAdmin(roles: string[]) {
-  return roles.includes('ADMIN') || roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN');
+  return hasAnyRole(roles, ADMIN_ROLES);
 }
 
 function assertCompanyRequestRules(input: z.infer<typeof companyRequestSchema>) {

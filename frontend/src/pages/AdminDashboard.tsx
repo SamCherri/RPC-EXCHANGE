@@ -70,9 +70,9 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
   const [withdrawReason, setWithdrawReason] = useState('');
   const [liquidityError, setLiquidityError] = useState('');
   const roles = currentUserRoles.map((role) => role.toUpperCase());
-  const canWithdrawPlatformProfit = roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN');
-  const canIssueRpc = roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN');
-  const canManageRpcLiquidity = roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN');
+  const canWithdrawPlatformProfit = roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN') || roles.includes('DEVELOPER');
+  const canIssueRpc = roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN') || roles.includes('DEVELOPER');
+  const canManageRpcLiquidity = roles.includes('SUPER_ADMIN') || roles.includes('COIN_CHIEF_ADMIN') || roles.includes('DEVELOPER');
 
   async function load() {
     try {
@@ -334,7 +334,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
             <button className="button-primary" type="submit" disabled={Boolean(pendingAdminAction) || adminModalLoading}>Emitir RPC</button>
           </form>
           ) : (
-            <p className="status-message error">Você pode acessar a tesouraria, mas apenas SUPER_ADMIN ou ADM Chefe da Moeda pode emitir RPC.</p>
+            <p className="status-message error">Você pode acessar a tesouraria, mas apenas SUPER_ADMIN, DEVELOPER ou ADM Chefe da Moeda pode emitir RPC.</p>
           )}
 
           <h3 className="nested-card">Enviar R$ para corretor</h3>

@@ -376,3 +376,41 @@ npm run prisma:seed
 - Referências antigas sobre “boost” ou “injeção” como mecanismo de subir preço diretamente devem ser tratadas como **legado/risco econômico**.
 - A diretriz prioritária atual é: preço de mercado secundário só muda por trade real e recompra deve executar contra ordens reais.
 - Veja a decisão oficial em `docs/ROADMAP_PRIORITARIO.md`.
+
+## Bootstrap seguro do dono técnico (`DEVELOPER`)
+
+A RPC Exchange possui um cargo protegido `DEVELOPER`, exibido como **Desenvolvedor**, para o dono técnico/econômico do projeto. Esse cargo não é concedido automaticamente ao primeiro cadastro e não pode ser concedido pelo painel administrativo comum.
+
+Para promover o dono técnico de forma controlada:
+
+1. Configure uma variável de ambiente no serviço de deploy ou ambiente local:
+
+   ```bash
+   PLATFORM_OWNER_DISCORD_ID=admin-rpc
+   ```
+
+   Como alternativa controlada, é possível usar:
+
+   ```bash
+   PLATFORM_OWNER_EMAIL=admin@rpc.exchange.local
+   ```
+
+2. Execute o seed/deploy:
+
+   ```bash
+   npm run prisma:seed --workspace backend
+   ```
+
+3. Entre normalmente pela tela de login usando o Discord e a senha da conta promovida.
+
+Em um ambiente novo com o seed padrão, a conta inicial usa:
+
+- Login/Discord: `admin-rpc`
+- Senha local de desenvolvimento: `Admin1234!`
+
+Observações de segurança:
+
+- Se a conta já existia antes, o seed não reseta a senha.
+- Não exponha senha real em logs, issues ou descrições de PR.
+- Não publique `DATABASE_URL`, `JWT_SECRET` ou credenciais de produção.
+- Se `PLATFORM_OWNER_DISCORD_ID`/`PLATFORM_OWNER_EMAIL` não estiverem configurados, o seed cria apenas as roles essenciais e não promove nenhum usuário para `DEVELOPER`.
