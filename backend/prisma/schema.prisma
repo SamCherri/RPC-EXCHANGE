@@ -669,6 +669,7 @@ model CompanyCapitalFlowEntry {
   newProjectBalance        Decimal               @db.Decimal(18, 2)
   reason                   String
   metadata                 String?
+  idempotencyKey           String?               @unique
   createdAt                DateTime              @default(now())
   company                  Company               @relation(fields: [companyId], references: [id])
   actorUser                User                  @relation(fields: [actorUserId], references: [id])
