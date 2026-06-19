@@ -3,6 +3,7 @@ import { z, ZodError } from 'zod';
 import { loginUser, registerUser } from '../services/auth-service.js';
 import { prisma } from '../lib/prisma.js';
 import { REGISTRATION_PROOF_BODY_LIMIT_BYTES, normalizeRegistrationProof } from '../services/registration-proof-service.js';
+import { ADMIN_ROLES, hasAnyRole } from '../lib/roles.js';
 
 export async function authRoutes(app: FastifyInstance) {
   app.post('/auth/register', { bodyLimit: REGISTRATION_PROOF_BODY_LIMIT_BYTES, config: { rateLimit: process.env.NODE_ENV === 'test' ? false : { max: 5, timeWindow: '1 minute' } } }, async (request: FastifyRequest, reply: FastifyReply) => {
@@ -111,7 +112,7 @@ export async function authRoutes(app: FastifyInstance) {
       const user = await loginUser(body.discordId, body.password);
       const roles = user.roles.map((item: { role: { key: string } }) => item.role.key);
 
-      const expiresIn = roles.some((role: string) => ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'].includes(role)) ? '2h' : '8h';
+      const expiresIn = roles.some((role: string) => ADMIN_ROLES.includes(role)) ? '2h' : '8h';
       const token = await reply.jwtSign({ sub: user.id, roles }, { expiresIn });
       await app.logAdmin({ action: 'LOGIN', entity: 'User', userId: user.id, reason: 'Login bem-sucedido' });
 

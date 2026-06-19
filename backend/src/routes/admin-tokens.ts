@@ -5,9 +5,9 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { cancelOrderWithRelease } from './market.js';
 import { validateDescriptionAllowed, validatePublicNameAllowed, validateTickerAllowed } from '../services/content-moderation-service.js';
+import { ADMIN_ROLES, hasSuperAdminRole } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
-const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'] as const;
 const FORCE_DELETE_CONFIRMATION = 'EXCLUIR DEFINITIVAMENTE';
 
 function normalizeForceDeleteConfirmation(value: string) {
@@ -37,7 +37,7 @@ function splitShares(totalTokens: number, ownerPercent: number) {
 
 
 function isSuperAdmin(roles: string[]) {
-  return roles.includes('SUPER_ADMIN');
+  return hasSuperAdminRole(roles);
 }
 
 async function getCompanyDeleteCounts(companyId: string, tx: Prisma.TransactionClient | typeof prisma = prisma) {

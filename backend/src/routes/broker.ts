@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { assertFinancialPermission } from '../services/registration-approval-service.js';
 import { normalizeDiscord } from '../services/auth-service.js';
 import { prisma } from '../lib/prisma.js';
+import { hasSuperAdminRole } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
@@ -22,7 +23,7 @@ const transferSchema = z
   });
 
 function requireBroker(reply: FastifyReply, roles: string[]) {
-  const isBroker = roles.includes('VIRTUAL_BROKER') || roles.includes('SUPER_ADMIN');
+  const isBroker = roles.includes('VIRTUAL_BROKER') || hasSuperAdminRole(roles);
   if (!isBroker) {
     reply.code(403).send({ message: 'Somente corretor virtual pode acessar esta rota.' });
     return false;

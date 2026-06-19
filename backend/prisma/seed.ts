@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -152,6 +152,7 @@ async function main() {
     ['ADMIN', 'Administrador'],
     ['COIN_CHIEF_ADMIN', 'ADM Chefe da Moeda'],
     ['SUPER_ADMIN', 'Super Admin'],
+    ['DEVELOPER', 'Desenvolvedor'],
   ];
 
   for (const [key, name] of roleKeys) {
@@ -175,6 +176,7 @@ async function main() {
     await prisma.permission.upsert({ where: { key }, update: {}, create: { key } });
   }
 
+  const developerRole = await prisma.role.findUniqueOrThrow({ where: { key: 'DEVELOPER' } });
   const superAdminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'SUPER_ADMIN' } });
   const adminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'ADMIN' } });
   const userRole = await prisma.role.findUniqueOrThrow({ where: { key: 'USER' } });
@@ -206,6 +208,45 @@ async function main() {
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } }, update: {}, create: { userId: admin.id, roleId: adminRole.id } });
   await prisma.userRole.upsert({ where: { userId_roleId: { userId: admin.id, roleId: coinChiefRole.id } }, update: {}, create: { userId: admin.id, roleId: coinChiefRole.id } });
 
+  const ownerDiscordId = process.env.PLATFORM_OWNER_DISCORD_ID ? normalizeSeedDiscord(process.env.PLATFORM_OWNER_DISCORD_ID) : '';
+  const ownerEmail = process.env.PLATFORM_OWNER_EMAIL?.trim().toLowerCase() ?? '';
+  if (ownerDiscordId || ownerEmail) {
+    const owner = await prisma.user.findFirst({
+      where: ownerDiscordId
+        ? { discordId: { equals: ownerDiscordId, mode: 'insensitive' } }
+        : { email: { equals: ownerEmail, mode: 'insensitive' } },
+      include: { roles: { include: { role: true } } },
+    });
+
+    if (!owner) {
+      console.warn('[seed] PLATFORM_OWNER configurado, mas nenhum usuário correspondente foi encontrado. Nenhum DEVELOPER foi atribuído.');
+    } else {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        await tx.wallet.upsert({ where: { userId: owner.id }, update: {}, create: { userId: owner.id } });
+        const requiredOwnerRoles = [developerRole, superAdminRole, adminRole, coinChiefRole, userRole];
+        for (const role of requiredOwnerRoles) {
+          await tx.userRole.upsert({
+            where: { userId_roleId: { userId: owner.id, roleId: role.id } },
+            update: {},
+            create: { userId: owner.id, roleId: role.id },
+          });
+        }
+        await tx.userRole.deleteMany({ where: { roleId: developerRole.id, userId: { not: owner.id } } });
+        await tx.adminLog.create({
+          data: {
+            userId: owner.id,
+            action: 'DEVELOPER_BOOTSTRAP_ASSIGNED',
+            entity: `User:${owner.id}`,
+            current: JSON.stringify({ roles: requiredOwnerRoles.map((role) => role.key), ownerDiscordId: ownerDiscordId || null, ownerEmail: ownerEmail || null }),
+            reason: 'Bootstrap seguro do dono técnico via variável de ambiente.',
+          },
+        });
+      });
+      console.log('[seed] DEVELOPER atribuído ao dono configurado e removido de qualquer outro usuário.');
+    }
+  } else {
+    console.log('[seed] PLATFORM_OWNER_DISCORD_ID/PLATFORM_OWNER_EMAIL não configurado; nenhum usuário foi promovido a DEVELOPER.');
+  }
 
   const platformAccount = await prisma.platformAccount.findFirst();
   if (!platformAccount) {

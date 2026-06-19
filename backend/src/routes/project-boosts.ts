@@ -3,12 +3,12 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { ADMIN_ROLES } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
 const OWNER_SOURCES = ['PERSONAL_WALLET', 'PROJECT_REVENUE'] as const;
 const ADMIN_SOURCES = ['ADMIN_ADJUSTMENT', 'PROJECT_REVENUE'] as const;
-const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'];
 
 const isAdmin = (roles: string[]) => ADMIN_ROLES.some((role) => roles.includes(role));
 const activeOnly = (status: string) => status === 'ACTIVE';

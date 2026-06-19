@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { CsvColumn, toCsv as toCsvFromColumns } from '../services/csv-export-service.js';
+import { ADMIN_REPORT_ROLES, ADMIN_ROLES, hasAnyRole } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { roles?: string[] } };
 
@@ -12,7 +13,7 @@ const paginationSchema = z.object({
 
 function checkAdmin(reply: FastifyReply, request: FastifyRequest) {
   const roles = (request as AuthRequest).user.roles ?? [];
-  const allowed = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'].some((role) => roles.includes(role));
+  const allowed = ADMIN_ROLES.some((role) => roles.includes(role));
   if (!allowed) {
     reply.code(403).send({ message: 'Sem permissão para auditoria administrativa.' });
     return false;
@@ -21,7 +22,7 @@ function checkAdmin(reply: FastifyReply, request: FastifyRequest) {
 }
 
 function canViewAdminReports(roles: string[]) {
-  return roles.some((role) => ['SUPER_ADMIN', 'AUDITOR', 'COIN_CHIEF_ADMIN'].includes(role));
+  return roles.some((role) => ADMIN_REPORT_ROLES.includes(role));
 }
 
 

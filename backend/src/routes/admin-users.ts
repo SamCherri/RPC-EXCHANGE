@@ -3,11 +3,11 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { decodeStoredRegistrationProof } from '../services/registration-proof-service.js';
+import { ADMIN_ROLES, REGISTRATION_REVIEW_ROLES, ROLE, hasSuperAdminRole } from '../lib/roles.js';
 
 type AuthRequest = FastifyRequest & { user: { sub: string; roles?: string[] } };
 
-const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN'] as const;
-const REGISTRATION_REVIEW_ROLES = ['ADMIN', 'SUPER_ADMIN'] as const;
+
 
 function ensureAdmin(reply: FastifyReply, roles: string[]) {
   if (!ADMIN_ROLES.some((role) => roles.includes(role))) {
@@ -28,11 +28,10 @@ function ensureRegistrationReviewer(reply: FastifyReply, roles: string[]) {
 }
 
 function ensureSuperAdminControl(reply: FastifyReply, actorRoles: string[], targetRoles: string[]) {
-  const actorIsSuper = actorRoles.includes('SUPER_ADMIN');
-  const touchingSuperAdmin = targetRoles.includes('SUPER_ADMIN');
+  const touchingSuperAdmin = targetRoles.includes(ROLE.SUPER_ADMIN);
 
-  if (touchingSuperAdmin && !actorIsSuper) {
-    reply.code(403).send({ message: 'Somente SUPER_ADMIN pode alterar role SUPER_ADMIN.' });
+  if (touchingSuperAdmin && !hasSuperAdminRole(actorRoles)) {
+    reply.code(403).send({ message: 'Somente SUPER_ADMIN ou DEVELOPER pode alterar role SUPER_ADMIN.' });
     return false;
   }
 
@@ -221,12 +220,12 @@ export async function adminUsersRoutes(app: FastifyInstance) {
   app.patch('/users/:id/financial-permissions', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const roles = authRequest.user.roles ?? [];
-    if (!roles.includes('SUPER_ADMIN')) return reply.code(403).send({ message: 'Somente SUPER_ADMIN concede permissões financeiras.' });
+    if (!hasSuperAdminRole(roles)) return reply.code(403).send({ message: 'Somente SUPER_ADMIN concede permissões financeiras.' });
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z.object({ permissions: z.array(z.enum(['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'])), reason: z.string().min(5) }).parse(request.body);
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return reply.code(404).send({ message: 'Usuário não encontrado.' });
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const requested = new Set(body.permissions);
       const existing = await tx.userFinancialPermission.findMany({ where: { userId: id } });
       for (const grant of existing) {
@@ -250,7 +249,11 @@ export async function adminUsersRoutes(app: FastifyInstance) {
       const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
       const body = z.object({ roles: z.array(z.string()).min(1) }).parse(request.body);
       const normalizedRoles = Array.from(new Set(body.roles.map((role: string) => role.trim().toUpperCase())));
-      if (!normalizedRoles.includes('USER')) normalizedRoles.push('USER');
+      if (!normalizedRoles.includes(ROLE.USER)) normalizedRoles.push(ROLE.USER);
+
+      if (normalizedRoles.includes(ROLE.DEVELOPER)) {
+        return reply.code(403).send({ message: 'DEVELOPER só pode ser atribuído por bootstrap seguro via PLATFORM_OWNER_DISCORD_ID/PLATFORM_OWNER_EMAIL.' });
+      }
 
       if (!ensureSuperAdminControl(reply, actorRoles, normalizedRoles)) return;
 
@@ -265,13 +268,19 @@ export async function adminUsersRoutes(app: FastifyInstance) {
       }
 
       const currentRoleKeys = targetUser.roles.map((role: { role: { key: string } }) => role.role.key);
-      const removingSuperAdmin = currentRoleKeys.includes('SUPER_ADMIN') && !normalizedRoles.includes('SUPER_ADMIN');
+      const existingDevelopers = await prisma.userRole.count({ where: { role: { key: ROLE.DEVELOPER } } });
+      const removingDeveloper = currentRoleKeys.includes(ROLE.DEVELOPER) && !normalizedRoles.includes(ROLE.DEVELOPER);
+      if (removingDeveloper && existingDevelopers <= 1) {
+        return reply.code(400).send({ message: 'Não é permitido remover o último DEVELOPER do sistema. Use o bootstrap seguro para trocar o dono técnico.' });
+      }
+
+      const removingSuperAdmin = currentRoleKeys.includes(ROLE.SUPER_ADMIN) && !normalizedRoles.includes(ROLE.SUPER_ADMIN);
       if (removingSuperAdmin) {
-        if (!actorRoles.includes('SUPER_ADMIN')) {
-          return reply.code(403).send({ message: 'Somente SUPER_ADMIN pode alterar role SUPER_ADMIN.' });
+        if (!hasSuperAdminRole(actorRoles)) {
+          return reply.code(403).send({ message: 'Somente SUPER_ADMIN ou DEVELOPER pode alterar role SUPER_ADMIN.' });
         }
 
-        const superAdmins = await prisma.userRole.count({ where: { role: { key: 'SUPER_ADMIN' } } });
+        const superAdmins = await prisma.userRole.count({ where: { role: { key: ROLE.SUPER_ADMIN } } });
         if (superAdmins <= 1) {
           return reply.code(400).send({ message: 'Não é permitido remover o último SUPER_ADMIN do sistema.' });
         }

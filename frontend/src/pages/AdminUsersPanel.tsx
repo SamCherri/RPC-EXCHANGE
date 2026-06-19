@@ -25,7 +25,7 @@ type UserRow = {
   createdAt: string;
 };
 
-const ALL_ROLES = ['USER', 'VIRTUAL_BROKER', 'BUSINESS_OWNER', 'AUDITOR', 'ADMIN', 'COIN_CHIEF_ADMIN', 'SUPER_ADMIN'];
+const ALL_ROLES = ['USER', 'VIRTUAL_BROKER', 'BUSINESS_OWNER', 'AUDITOR', 'ADMIN', 'COIN_CHIEF_ADMIN', 'SUPER_ADMIN', 'DEVELOPER'];
 
 type AdminUsersPanelProps = {
   currentUserRoles: string[];
@@ -81,7 +81,7 @@ export function AdminUsersPanel({ currentUserRoles, onPermissionsUpdated, mode =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const canReviewRegistrations = currentUserRoles.some((role) => ['ADMIN', 'SUPER_ADMIN'].includes(role.toUpperCase()));
+  const canReviewRegistrations = currentUserRoles.some((role) => ['ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(role.toUpperCase()));
   const brokers = useMemo(() => users.filter((user) => user.roles.includes('VIRTUAL_BROKER')), [users]);
 
   function toggleRole(role: string) {
@@ -103,7 +103,7 @@ export function AdminUsersPanel({ currentUserRoles, onPermissionsUpdated, mode =
 
     await api(`/admin/users/${editingUserId}/roles`, {
       method: 'PATCH',
-      body: JSON.stringify({ roles: Array.from(new Set(['USER', ...editingRoles])) }),
+      body: JSON.stringify({ roles: Array.from(new Set(['USER', ...editingRoles.filter((role) => role !== 'DEVELOPER')])) }),
     });
 
     const currentUserId = getCurrentUserIdFromToken();
@@ -252,10 +252,10 @@ export function AdminUsersPanel({ currentUserRoles, onPermissionsUpdated, mode =
                     <input
                       type="checkbox"
                       checked={editingRoles.includes(role)}
-                      disabled={role === 'USER'}
+                      disabled={role === 'USER' || role === 'DEVELOPER'}
                       onChange={() => toggleRole(role)}
                     />
-                    {translateRole(role)}
+                    {translateRole(role)}{role === 'DEVELOPER' ? ' (somente bootstrap seguro)' : ''}
                   </label>
                 ))}
                 <button className="button-primary" type="submit">Salvar permissões</button>

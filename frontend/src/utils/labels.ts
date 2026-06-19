@@ -52,8 +52,9 @@ export function translateWithdrawalStatus(status?: string) {
 export function translateRole(role?: string) {
   return translateValue(role, {
     USER: 'Usuário',
-    ADMIN: 'Administrador',
-    SUPER_ADMIN: 'Super administrador',
+    DEVELOPER: 'Desenvolvedor',
+    ADMIN: 'Admin',
+    SUPER_ADMIN: 'Super Admin',
     COIN_CHIEF_ADMIN: 'ADM Chefe da Moeda',
     VIRTUAL_BROKER: 'Corretor virtual',
     BUSINESS_OWNER: 'Dono de projeto',

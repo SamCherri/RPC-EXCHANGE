@@ -26,7 +26,7 @@ type ViewerRoles = {
 type CurrentUser = CurrentUserResponse['user'];
 
 
-const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN']);
+const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN', 'DEVELOPER']);
 const BROKER_ROLES = new Set(['VIRTUAL_BROKER']);
 const PROJECT_OWNER_ROLES = new Set(['BUSINESS_OWNER']);
 
