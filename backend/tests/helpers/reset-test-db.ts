@@ -10,6 +10,8 @@ export async function resetTestDatabase(prisma: PrismaClient): Promise<void> {
   }
 
   await prisma.$transaction([
+    prisma.supportTicketMessage.deleteMany(),
+    prisma.supportTicket.deleteMany(),
     prisma.feeDistribution.deleteMany(),
     prisma.trade.deleteMany(),
     prisma.marketOrder.deleteMany(),

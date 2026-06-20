@@ -17,6 +17,7 @@ import { adminAuditRoutes } from './routes/admin-audit.js';
 import { projectBoostRoutes } from './routes/project-boosts.js';
 import { rpcMarketRoutes } from './routes/rpc-market.js';
 import { projectCapitalFlowRoutes } from './routes/project-capital-flow.js';
+import { supportRoutes } from './routes/support.js';
 
 export function buildApp() {
   const app = Fastify({ logger: true });
@@ -69,6 +70,7 @@ export function buildApp() {
   app.register(projectBoostRoutes, { prefix: '/api' });
   app.register(rpcMarketRoutes, { prefix: '/api' });
   app.register(projectCapitalFlowRoutes, { prefix: '/api' });
+  app.register(supportRoutes, { prefix: '/api' });
 
   return app;
 }

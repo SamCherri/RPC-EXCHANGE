@@ -116,6 +116,31 @@ enum CompanyCapitalFlowSource {
   MANUAL_CORRECTION
 }
 
+enum SupportTicketCategory {
+  BUG
+  SUGGESTION
+  COMPLAINT
+  QUESTION
+  BALANCE_ISSUE
+  REGISTRATION_ISSUE
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_REVIEW
+  ANSWERED
+  CLOSED
+  REJECTED
+}
+
+enum SupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id           String           @id @default(cuid())
   name         String
@@ -160,6 +185,9 @@ model User {
   approvedRegistrations User[] @relation("UserRegistrationApprover")
   financialPermissions UserFinancialPermission[] @relation("FinancialPermissionUser")
   grantedFinancialPermissions UserFinancialPermission[] @relation("FinancialPermissionGrantor")
+  supportTickets SupportTicket[] @relation("SupportTicketUser")
+  reviewedSupportTickets SupportTicket[] @relation("SupportTicketReviewer")
+  supportMessages SupportTicketMessage[] @relation("SupportTicketMessageAuthor")
 }
 
 model RegistrationProof {
@@ -678,5 +706,54 @@ model CompanyCapitalFlowEntry {
   @@index([actorUserId])
   @@index([type])
   @@index([source])
+  @@index([createdAt])
+}
+
+
+model SupportTicket {
+  id             String                @id @default(cuid())
+  userId         String
+  category       SupportTicketCategory
+  title          String
+  message        String
+  screen         String?
+  platform       String?
+  userAgent      String?
+  status         SupportTicketStatus   @default(OPEN)
+  internalPriority SupportTicketPriority @default(LOW)
+  internalNote   String?
+  screenshotMimeType String?
+  screenshotFileName String?
+  screenshotData String?
+  screenshotSize Int?
+  reviewedById   String?
+  answeredAt     DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  user           User                  @relation("SupportTicketUser", fields: [userId], references: [id])
+  reviewedBy     User?                 @relation("SupportTicketReviewer", fields: [reviewedById], references: [id])
+  messages       SupportTicketMessage[]
+
+  @@index([userId])
+  @@index([category])
+  @@index([status])
+  @@index([internalPriority])
+  @@index([createdAt])
+}
+
+model SupportTicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  message   String
+  isInternal Boolean @default(false)
+  createdAt DateTime @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id])
+  author    User @relation("SupportTicketMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@index([isInternal])
   @@index([createdAt])
 }

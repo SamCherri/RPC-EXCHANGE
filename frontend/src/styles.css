@@ -1261,3 +1261,4 @@ button:disabled, .ui-button:disabled, input:disabled, select:disabled, textarea:
     transition-duration: .01ms !important;
   }
 }
+.support-floating-button{position:fixed;right:18px;bottom:18px;z-index:40;border:0;border-radius:999px;padding:14px 18px;background:#6d5dfc;color:#fff;font-weight:800;box-shadow:0 12px 30px rgba(0,0,0,.35);cursor:pointer}.support-modal{width:min(920px,94vw);max-height:88vh;overflow:auto}.support-modal-header{display:flex;align-items:center;justify-content:space-between;gap:12px}.support-ticket-card{text-align:left;width:100%;cursor:pointer}.admin-support-grid{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:16px}@media(max-width:800px){.admin-support-grid{grid-template-columns:1fr}.support-floating-button{right:12px;bottom:12px}.support-modal-header{align-items:flex-start;flex-direction:column}}

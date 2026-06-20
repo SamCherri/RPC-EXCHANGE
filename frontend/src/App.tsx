@@ -13,6 +13,7 @@ import { RegistrationStatusPage } from './pages/RegistrationStatusPage';
 import { api, getCurrentUser, CurrentUserResponse } from './services/api';
 import { BrandLogo } from './components/BrandLogo';
 import { SideDrawer, SideDrawerItem } from './components/SideDrawer';
+import { SupportWidget } from './components/SupportWidget';
 
 type PublicTab = 'login' | 'register';
 type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'withdrawals' | 'company-request' | 'admin' | 'broker' | 'my-projects';
@@ -328,6 +329,7 @@ export function App() {
       {screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}
       {screen === 'admin' && roles.canSeeAdmin && <AdminDashboard currentUserRoles={currentUser?.roles ?? []} onPermissionsUpdated={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />}
       {screen === 'broker' && roles.canSeeBroker && <BrokerDashboard />}
+      <SupportWidget />
     </main>
   );
 }
