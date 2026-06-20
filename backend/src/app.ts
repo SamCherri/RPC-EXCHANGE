@@ -10,6 +10,7 @@ import { brokerRoutes } from './routes/broker.js';
 import { companyRoutes } from './routes/companies.js';
 import { marketRoutes } from './routes/market.js';
 import { withdrawalsRoutes } from './routes/withdrawals.js';
+import { depositsRoutes } from './routes/deposits.js';
 import { prisma } from './lib/prisma.js';
 import { adminUsersRoutes } from './routes/admin-users.js';
 import { adminTokensRoutes } from './routes/admin-tokens.js';
@@ -64,6 +65,7 @@ export function buildApp() {
   app.register(companyRoutes, { prefix: '/api' });
   app.register(marketRoutes, { prefix: '/api' });
   app.register(withdrawalsRoutes, { prefix: '/api' });
+  app.register(depositsRoutes, { prefix: '/api' });
   app.register(adminUsersRoutes, { prefix: '/api/admin' });
   app.register(adminTokensRoutes, { prefix: '/api/admin' });
   app.register(adminAuditRoutes, { prefix: '/api/admin' });

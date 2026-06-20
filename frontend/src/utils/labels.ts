@@ -39,6 +39,23 @@ export function translateOrderMode(mode?: string) {
   });
 }
 
+export function translateDepositStatus(status?: string) {
+  return translateValue(status, {
+    PENDING: 'Pendente',
+    PROCESSING: 'Em processamento',
+    COMPLETED: 'Concluído',
+    REJECTED: 'Rejeitado',
+    CANCELED: 'Cancelado',
+  });
+}
+
+export function translateDepositMethod(method?: string) {
+  return translateValue(method, {
+    PLATFORM: 'Plataforma/Administração',
+    BROKER: 'Corretor Virtual',
+  });
+}
+
 export function translateWithdrawalStatus(status?: string) {
   return translateValue(status, {
     PENDING: 'Pendente',
@@ -105,5 +122,11 @@ export function translateAdminAction(action?: string) {
     WITHDRAWAL_REQUEST_CREATED: 'Saque solicitado',
     WITHDRAWAL_COMPLETED: 'Saque concluído',
     WITHDRAWAL_REJECTED: 'Saque rejeitado',
+    DEPOSIT_REQUEST_CREATED: 'Depósito solicitado',
+    DEPOSIT_REQUEST_CANCELED_BY_USER: 'Depósito cancelado pelo usuário',
+    DEPOSIT_MARKED_PROCESSING: 'Depósito em processamento',
+    FIAT_DEPOSIT_COMPLETED: 'Depósito via plataforma concluído',
+    BROKER_DEPOSIT_COMPLETED: 'Depósito via corretor concluído',
+    DEPOSIT_REJECTED: 'Depósito rejeitado',
   });
 }

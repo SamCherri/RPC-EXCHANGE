@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { AdminWithdrawalsPanel } from './AdminWithdrawalsPanel';
+import { AdminDepositsPanel } from './AdminDepositsPanel';
 import { AdminUsersPanel } from './AdminUsersPanel';
 import { AdminTokensPanel } from './AdminTokensPanel';
 import { AdminAuditPanel } from './AdminAuditPanel';
@@ -22,7 +23,7 @@ type CompanyRevenueAccount = {
   totalReceivedFees: string | number;
   totalWithdrawn: string | number;
 };
-type ActiveTab = 'overview' | 'users' | 'brokers' | 'tokens' | 'withdrawals' | 'treasury' | 'liquidity' | 'revenues' | 'audit' | 'reports' | 'support' | 'economic-alerts' | 'market-health';
+type ActiveTab = 'overview' | 'users' | 'brokers' | 'tokens' | 'deposits' | 'withdrawals' | 'treasury' | 'liquidity' | 'revenues' | 'audit' | 'reports' | 'support' | 'economic-alerts' | 'market-health';
 
 type AdminConfirmAction =
   | 'issuance'
@@ -117,6 +118,7 @@ export function AdminDashboard({ currentUserRoles, canSeeSupport, onPermissionsU
     users: 'Usuários',
     brokers: 'Corretores',
     tokens: 'Tokens/Mercados',
+    deposits: 'Depósitos',
     withdrawals: 'Saques',
     treasury: 'Tesouraria administrativa',
     liquidity: 'Liquidez RPC/R$',
@@ -141,6 +143,7 @@ export function AdminDashboard({ currentUserRoles, canSeeSupport, onPermissionsU
     { key: 'users', label: 'Usuários', active: tab === 'users', onClick: () => setTab('users') },
     { key: 'brokers', label: 'Corretores', active: tab === 'brokers', onClick: () => setTab('brokers') },
     { key: 'tokens', label: 'Tokens/Mercados', active: tab === 'tokens', onClick: () => setTab('tokens') },
+    { key: 'deposits', label: 'Depósitos', active: tab === 'deposits', onClick: () => setTab('deposits') },
     { key: 'withdrawals', label: 'Saques', active: tab === 'withdrawals', onClick: () => setTab('withdrawals') },
     { key: 'treasury', label: 'Tesouraria administrativa', active: tab === 'treasury', onClick: () => setTab('treasury') },
     { key: 'revenues', label: 'Receitas', active: tab === 'revenues', onClick: () => setTab('revenues') },
@@ -278,6 +281,7 @@ export function AdminDashboard({ currentUserRoles, canSeeSupport, onPermissionsU
         <button className={tab === 'users' ? 'pill active' : 'pill'} onClick={() => setTab('users')}>Usuários</button>
         <button className={tab === 'brokers' ? 'pill active' : 'pill'} onClick={() => setTab('brokers')}>Corretores</button>
         <button className={tab === 'tokens' ? 'pill active' : 'pill'} onClick={() => setTab('tokens')}>Tokens/Mercados</button>
+        <button className={tab === 'deposits' ? 'pill active' : 'pill'} onClick={() => setTab('deposits')}>Depósitos</button>
         <button className={tab === 'withdrawals' ? 'pill active' : 'pill'} onClick={() => setTab('withdrawals')}>Saques</button>
         <button className={tab === 'treasury' ? 'pill active' : 'pill'} onClick={() => setTab('treasury')}>Tesouraria</button>
         {canManageRpcLiquidity && <button className={tab === 'liquidity' ? 'pill active' : 'pill'} onClick={() => setTab('liquidity')}>Liquidez RPC/R$</button>}
@@ -329,6 +333,7 @@ export function AdminDashboard({ currentUserRoles, canSeeSupport, onPermissionsU
       {tab === 'users' && <AdminUsersPanel currentUserRoles={currentUserRoles} onPermissionsUpdated={onPermissionsUpdated} mode="users" />}
       {tab === 'brokers' && <AdminUsersPanel currentUserRoles={currentUserRoles} onPermissionsUpdated={onPermissionsUpdated} mode="brokers" />}
       {tab === 'tokens' && <AdminTokensPanel currentUserRoles={currentUserRoles} />}
+      {tab === 'deposits' && <AdminDepositsPanel />}
       {tab === 'withdrawals' && <AdminWithdrawalsPanel />}
 
       {tab === 'treasury' && (
