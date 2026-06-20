@@ -70,6 +70,7 @@ export function App() {
   const [hasOwnedProjects, setHasOwnedProjects] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isGlobalDrawerOpen, setIsGlobalDrawerOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   const tokenRoles = useMemo(() => decodeRolesFromToken(token), [token]);
   const roles = useMemo(() => {
@@ -156,6 +157,7 @@ export function App() {
       { key: 'rpc-market', label: 'RPC/R$', icon: '💴', active: screen === 'rpc-market', onClick: () => setScreen('rpc-market'), section: 'main' },
       { key: 'withdrawals', label: 'Saque', icon: '🏧', active: screen === 'withdrawals', onClick: () => setScreen('withdrawals'), section: 'secondary' },
       { key: 'company-request', label: 'Criar token', icon: '🚀', active: screen === 'company-request', onClick: () => setScreen('company-request'), section: 'secondary' },
+      { key: 'support', label: 'Suporte', icon: '💬', onClick: () => setIsSupportOpen(true), section: 'secondary' },
     ];
 
     if (canSeeMyProjects) items.push({ key: 'my-projects', label: 'Meus Projetos', icon: '📊', active: screen === 'my-projects', onClick: () => setScreen('my-projects'), section: 'secondary' });
@@ -169,8 +171,8 @@ export function App() {
   if (registrationBlocked) {
     return (
       <main className="container mobile-app-shell">
-        <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />
-        <SupportWidget />
+        <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} onOpenSupport={() => setIsSupportOpen(true)} />
+        <SupportWidget open={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
       </main>
     );
   }
@@ -289,7 +291,7 @@ export function App() {
 
             <div className="mobile-menu-hint">
               <span>☰</span>
-              <p>Use o menu lateral para acessar Saque, Criar token, Projetos, Corretor e Sair.</p>
+              <p>Use o menu lateral para acessar Saque, Criar token, Projetos, Corretor, Suporte e Sair.</p>
             </div>
             <div className="summary-grid">
               <article className="summary-item">
@@ -338,7 +340,7 @@ export function App() {
       {screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}
       {screen === 'admin' && roles.canSeeAdmin && <AdminDashboard currentUserRoles={currentUser?.roles ?? []} canSeeSupport={roles.canSeeAdminSupport} onPermissionsUpdated={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />}
       {screen === 'broker' && roles.canSeeBroker && <BrokerDashboard />}
-      <SupportWidget />
+      <SupportWidget open={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
     </main>
   );
 }

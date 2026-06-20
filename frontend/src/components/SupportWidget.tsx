@@ -6,8 +6,15 @@ const categories = ['BUG', 'SUGGESTION', 'COMPLAINT', 'QUESTION', 'BALANCE_ISSUE
 const labels: Record<string,string> = { BUG:'Bug', SUGGESTION:'Sugestão', COMPLAINT:'Reclamação', QUESTION:'Dúvida', BALANCE_ISSUE:'Problema de saldo', REGISTRATION_ISSUE:'Problema de cadastro', OTHER:'Outro' };
 const MAX_BYTES = 2 * 1024 * 1024;
 
-export function SupportWidget() {
-  const [open, setOpen] = useState(false);
+type SupportWidgetProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export function SupportWidget({ open, onClose }: SupportWidgetProps) {
+  function closeSupport() {
+    onClose();
+  }
   const [category, setCategory] = useState('QUESTION');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -47,10 +54,9 @@ export function SupportWidget() {
   }
 
   return <>
-    <button className="support-floating-button" type="button" onClick={() => setOpen(true)}>💬 Suporte</button>
     {open && <div className="modal-backdrop" role="dialog" aria-modal="true">
       <section className="card support-modal">
-        <div className="support-modal-header"><h2>Central de Suporte privada</h2><button className="button-secondary small-button" onClick={() => setOpen(false)}>Fechar</button></div>
+        <div className="support-modal-header"><h2>Central de Suporte privada</h2><button className="button-secondary small-button" onClick={closeSupport}>Fechar</button></div>
         <p className="info-text">Seu chamado é privado. Apenas você e a equipe administrativa autorizada conseguem visualizar.</p>
         {error && <p className="status-message error">{error}</p>}{success && <p className="status-message success">{success}</p>}
         <form className="form-grid" onSubmit={submit}>
