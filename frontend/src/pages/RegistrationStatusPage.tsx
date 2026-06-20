@@ -4,7 +4,7 @@ import { api } from '../services/api';
 
 type Status = { status: 'PENDING'|'NEEDS_CORRECTION'|'APPROVED'|'REJECTED'; note?: string | null; hasScreenshot: boolean; screenshotUpdatedAt?: string | null; financialPermissions: string[] };
 
-export function RegistrationStatusPage({ onLogout, onReload }: { onLogout: () => void; onReload: () => void }) {
+export function RegistrationStatusPage({ onLogout, onReload, onOpenSupport }: { onLogout: () => void; onReload: () => void; onOpenSupport: () => void }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -59,6 +59,9 @@ export function RegistrationStatusPage({ onLogout, onReload }: { onLogout: () =>
       {status.status === 'APPROVED' && <button className="button-primary" onClick={onReload}>Entrar na plataforma</button>}
     </>}
     {message && <p className={`status-message ${message.includes('reenviado') ? 'success' : 'error'}`}>{message}</p>}
-    <button className="button-secondary" onClick={onLogout}>Sair</button>
+    <div className="status-actions">
+      <button className="button-secondary" type="button" onClick={onOpenSupport}>💬 Falar com suporte</button>
+      <button className="button-secondary" type="button" onClick={onLogout}>Sair</button>
+    </div>
   </section></main>;
 }
