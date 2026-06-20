@@ -7,6 +7,7 @@ import { AdminAuditPanel } from './AdminAuditPanel';
 import { AdminEconomicAlertsPanel } from './AdminEconomicAlertsPanel';
 import { AdminMarketHealthPanel } from './AdminMarketHealthPanel';
 import { AdminReportsPanel } from './AdminReportsPanel';
+import { AdminSupportPanel } from './AdminSupportPanel';
 import { SideDrawer, SideDrawerItem } from '../components/SideDrawer';
 import { ConfirmActionModal } from '../components/ConfirmActionModal';
 
@@ -21,7 +22,7 @@ type CompanyRevenueAccount = {
   totalReceivedFees: string | number;
   totalWithdrawn: string | number;
 };
-type ActiveTab = 'overview' | 'users' | 'brokers' | 'tokens' | 'withdrawals' | 'treasury' | 'liquidity' | 'revenues' | 'audit' | 'reports' | 'economic-alerts' | 'market-health';
+type ActiveTab = 'overview' | 'users' | 'brokers' | 'tokens' | 'withdrawals' | 'treasury' | 'liquidity' | 'revenues' | 'audit' | 'reports' | 'support' | 'economic-alerts' | 'market-health';
 
 type AdminConfirmAction =
   | 'issuance'
@@ -120,6 +121,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
     revenues: 'Receitas',
     audit: 'Auditoria',
     reports: 'Relatórios',
+    support: 'Suporte',
     'economic-alerts': 'Alertas econômicos',
     'market-health': 'Saúde dos Mercados',
   };
@@ -142,6 +144,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
     { key: 'revenues', label: 'Receitas', active: tab === 'revenues', onClick: () => setTab('revenues') },
     { key: 'audit', label: 'Auditoria', active: tab === 'audit', onClick: () => setTab('audit') },
     { key: 'reports', label: 'Relatórios', active: tab === 'reports', onClick: () => setTab('reports') },
+    { key: 'support', label: 'Suporte', active: tab === 'support', onClick: () => setTab('support') },
     { key: 'economic-alerts', label: 'Alertas econômicos', active: tab === 'economic-alerts', onClick: () => setTab('economic-alerts') },
     { key: 'market-health', label: 'Saúde dos Mercados', active: tab === 'market-health', onClick: () => setTab('market-health') },
   ];
@@ -277,6 +280,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
         <button className={tab === 'revenues' ? 'pill active' : 'pill'} onClick={() => setTab('revenues')}>Receitas</button>
         <button className={tab === 'audit' ? 'pill active' : 'pill'} onClick={() => setTab('audit')}>Auditoria</button>
         <button className={tab === 'reports' ? 'pill active' : 'pill'} onClick={() => setTab('reports')}>Relatórios</button>
+        <button className={tab === 'support' ? 'pill active' : 'pill'} onClick={() => setTab('support')}>Suporte</button>
         <button className={tab === 'economic-alerts' ? 'pill active' : 'pill'} onClick={() => setTab('economic-alerts')}>Alertas econômicos</button>
         <button className={tab === 'market-health' ? 'pill active' : 'pill'} onClick={() => setTab('market-health')}>Saúde dos Mercados</button>
       </nav>
@@ -442,6 +446,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
 
       {tab === 'audit' && <AdminAuditPanel />}
       {tab === 'reports' && <AdminReportsPanel />}
+      {tab === 'support' && <AdminSupportPanel />}
       {tab === 'economic-alerts' && <AdminEconomicAlertsPanel />}
       {tab === 'market-health' && <AdminMarketHealthPanel />}
 
