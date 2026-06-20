@@ -11,6 +11,7 @@ const statuses = ['OPEN', 'IN_REVIEW', 'ANSWERED', 'CLOSED', 'REJECTED'] as cons
 const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 const allowedScreenshotMimes = ['image/png', 'image/jpeg', 'image/webp'] as const;
 const MAX_SCREENSHOT_BYTES = 2 * 1024 * 1024;
+const SUPPORT_TICKET_BODY_LIMIT_BYTES = 3 * 1024 * 1024;
 
 function ensureSupportAdmin(reply: FastifyReply, roles: string[]) {
   if (!hasAnyRole(roles, SUPPORT_ADMIN_ROLES)) {
@@ -66,7 +67,7 @@ function validateScreenshot(input?: { mimeType?: string; fileName?: string; data
 }
 
 export async function supportRoutes(app: FastifyInstance) {
-  app.post('/support/tickets', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/support/tickets', { preHandler: [app.authenticate], bodyLimit: SUPPORT_TICKET_BODY_LIMIT_BYTES }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     const body = z.object({
       category: z.enum(categories),
@@ -129,10 +130,10 @@ export async function supportRoutes(app: FastifyInstance) {
   app.get('/admin/support/tickets/export/codex', { preHandler: [app.authenticate] }, async (request, reply) => {
     const authRequest = request as AuthRequest;
     if (!ensureSupportAdmin(reply, authRequest.user.roles ?? [])) return;
-    const tickets = await prisma.supportTicket.findMany({ include: { user: { select: { id: true, name: true, characterName: true } }, messages: true }, orderBy: { createdAt: 'desc' }, take: 1000 });
+    const tickets = await prisma.supportTicket.findMany({ orderBy: { createdAt: 'desc' }, take: 1000 });
     const byCategory = new Map<string, number>(); const byStatus = new Map<string, number>();
     for (const t of tickets) { byCategory.set(t.category, (byCategory.get(t.category) ?? 0) + 1); byStatus.set(t.status, (byStatus.get(t.status) ?? 0) + 1); }
-    const lines = ['# Relatório técnico de suporte — RPC Exchange', '', '## Resumo por categoria', ...Array.from(byCategory, ([k,v]) => `- ${k}: ${v}`), '', '## Resumo por status', ...Array.from(byStatus, ([k,v]) => `- ${k}: ${v}`), '', '## Chamados', ...tickets.map((t) => `- ${t.id} | ${t.category} | ${t.status} | ${t.internalPriority} | ${t.title} | tela=${t.screen ?? '-'} | plataforma=${t.platform ?? '-'} | usuário=${t.user.characterName ?? t.user.name} (${t.user.id}) | criado=${t.createdAt.toISOString()}${t.internalNote ? ` | nota interna=${t.internalNote.replace(/\s+/g, ' ').slice(0, 300)}` : ''}`)];
+    const lines = ['# Relatório técnico de suporte — RPC Exchange', '', 'Este relatório não inclui passwordHash, screenshotData, e-mail ou anexos.', '', '## Resumo por categoria', ...Array.from(byCategory, ([k,v]) => `- ${k}: ${v}`), '', '## Resumo por status', ...Array.from(byStatus, ([k,v]) => `- ${k}: ${v}`), '', '## Chamados', ...tickets.map((t) => [`- id=${t.id}`, `categoria=${t.category}`, `status=${t.status}`, `prioridade=${t.internalPriority}`, `título=${t.title.replace(/\s+/g, ' ').slice(0, 160)}`, `tela=${t.screen ?? '-'}`, `plataforma=${t.platform ?? '-'}`, `data=${t.createdAt.toISOString()}`, `descrição=${t.message.replace(/\s+/g, ' ').slice(0, 700)}`, `notaInterna=${t.internalNote ? t.internalNote.replace(/\s+/g, ' ').slice(0, 500) : '-'}`, `temPrint=${t.screenshotData ? 'sim' : 'não'}`].join(' | '))];
     return reply.header('Content-Type', 'text/markdown; charset=utf-8').header('Content-Disposition', 'attachment; filename="rpc-support-codex-report.md"').send(lines.join('\n'));
   });
 
@@ -143,6 +144,22 @@ export async function supportRoutes(app: FastifyInstance) {
     const ticket = await prisma.supportTicket.findUnique({ where: { id }, include: { user: true, messages: { include: { author: true }, orderBy: { createdAt: 'asc' } } } });
     if (!ticket) return reply.code(404).send({ message: 'Chamado não encontrado.' });
     return { ticket: sanitizeTicket(ticket, true) };
+  });
+
+
+  app.get('/admin/support/tickets/:id/screenshot', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const authRequest = request as AuthRequest;
+    if (!ensureSupportAdmin(reply, authRequest.user.roles ?? [])) return;
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id }, select: { screenshotData: true, screenshotMimeType: true, screenshotFileName: true } });
+    if (!ticket?.screenshotData || !ticket.screenshotMimeType) return reply.code(404).send({ message: 'Print não encontrado.' });
+    if (!allowedScreenshotMimes.includes(ticket.screenshotMimeType as any)) return reply.code(400).send({ message: 'Tipo de print inválido.' });
+    const extension = ticket.screenshotMimeType === 'image/png' ? 'png' : ticket.screenshotMimeType === 'image/webp' ? 'webp' : 'jpg';
+    const safeFileName = (ticket.screenshotFileName?.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || `support-ticket-${id}.${extension}`);
+    return reply
+      .header('Content-Type', ticket.screenshotMimeType)
+      .header('Content-Disposition', `inline; filename="${safeFileName}"`)
+      .send(Buffer.from(ticket.screenshotData, 'base64'));
   });
 
   app.patch('/admin/support/tickets/:id', { preHandler: [app.authenticate] }, async (request, reply) => {

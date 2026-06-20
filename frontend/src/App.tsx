@@ -22,21 +22,23 @@ type ViewerRoles = {
   canSeeAdmin: boolean;
   canSeeBroker: boolean;
   canSeeProjectOwner: boolean;
+  canSeeAdminSupport: boolean;
 };
 
 type CurrentUser = CurrentUserResponse['user'];
 
 
 const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'COIN_CHIEF_ADMIN', 'DEVELOPER']);
+const SUPPORT_ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']);
 const BROKER_ROLES = new Set(['VIRTUAL_BROKER']);
 const PROJECT_OWNER_ROLES = new Set(['BUSINESS_OWNER']);
 
 function decodeRolesFromToken(token: string | null): ViewerRoles {
-  if (!token) return { canSeeAdmin: false, canSeeBroker: false, canSeeProjectOwner: false };
+  if (!token) return { canSeeAdmin: false, canSeeBroker: false, canSeeProjectOwner: false, canSeeAdminSupport: false };
 
   try {
     const [, payload] = token.split('.');
-    if (!payload) return { canSeeAdmin: false, canSeeBroker: false, canSeeProjectOwner: false };
+    if (!payload) return { canSeeAdmin: false, canSeeBroker: false, canSeeProjectOwner: false, canSeeAdminSupport: false };
 
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
     const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
@@ -53,9 +55,10 @@ function decodeRolesFromToken(token: string | null): ViewerRoles {
       canSeeAdmin: extractedRoles.some((role) => ADMIN_ROLES.has(role)),
       canSeeBroker: extractedRoles.some((role) => BROKER_ROLES.has(role)),
       canSeeProjectOwner: extractedRoles.some((role) => PROJECT_OWNER_ROLES.has(role)),
+      canSeeAdminSupport: extractedRoles.some((role) => SUPPORT_ADMIN_ROLES.has(role)),
     };
   } catch {
-    return { canSeeAdmin: false, canSeeBroker: false, canSeeProjectOwner: false };
+    return { canSeeAdmin: false, canSeeBroker: false, canSeeProjectOwner: false, canSeeAdminSupport: false };
   }
 }
 
@@ -76,6 +79,7 @@ export function App() {
         canSeeAdmin: normalized.some((role) => ADMIN_ROLES.has(role)),
         canSeeBroker: normalized.some((role) => BROKER_ROLES.has(role)),
         canSeeProjectOwner: normalized.some((role) => PROJECT_OWNER_ROLES.has(role)),
+        canSeeAdminSupport: normalized.some((role) => SUPPORT_ADMIN_ROLES.has(role)),
       };
     }
 
@@ -163,7 +167,12 @@ export function App() {
   }, [canSeeMyProjects, handleLogout, roles.canSeeAdmin, roles.canSeeBroker, screen]);
 
   if (registrationBlocked) {
-    return <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />;
+    return (
+      <main className="container mobile-app-shell">
+        <RegistrationStatusPage onLogout={handleLogout} onReload={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />
+        <SupportWidget />
+      </main>
+    );
   }
 
   if (!token) {
@@ -327,7 +336,7 @@ export function App() {
       {screen === 'withdrawals' && <WithdrawalsPage />}
       {screen === 'company-request' && <CompanyRequestPage />}
       {screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}
-      {screen === 'admin' && roles.canSeeAdmin && <AdminDashboard currentUserRoles={currentUser?.roles ?? []} onPermissionsUpdated={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />}
+      {screen === 'admin' && roles.canSeeAdmin && <AdminDashboard currentUserRoles={currentUser?.roles ?? []} canSeeSupport={roles.canSeeAdminSupport} onPermissionsUpdated={async () => { const response = await getCurrentUser(); setCurrentUser(response.user); }} />}
       {screen === 'broker' && roles.canSeeBroker && <BrokerDashboard />}
       <SupportWidget />
     </main>
