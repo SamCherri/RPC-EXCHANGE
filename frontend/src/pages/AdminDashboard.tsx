@@ -34,10 +34,11 @@ type AdminConfirmAction =
 
 type AdminDashboardProps = {
   currentUserRoles: string[];
+  canSeeSupport: boolean;
   onPermissionsUpdated: () => Promise<void>;
 };
 
-export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: AdminDashboardProps) {
+export function AdminDashboard({ currentUserRoles, canSeeSupport, onPermissionsUpdated }: AdminDashboardProps) {
   const [tab, setTab] = useState<ActiveTab>('overview');
   const [data, setData] = useState<Overview | null>(null);
   const [platformAccount, setPlatformAccount] = useState<PlatformAccount | null>(null);
@@ -108,7 +109,8 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
   useEffect(() => { load(); }, [canManageRpcLiquidity]);
   useEffect(() => {
     if (!canManageRpcLiquidity && tab === 'liquidity') setTab('overview');
-  }, [canManageRpcLiquidity, tab]);
+    if (!canSeeSupport && tab === 'support') setTab('overview');
+  }, [canManageRpcLiquidity, canSeeSupport, tab]);
 
   const adminTabLabels: Record<ActiveTab, string> = {
     overview: 'Visão geral',
@@ -144,10 +146,12 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
     { key: 'revenues', label: 'Receitas', active: tab === 'revenues', onClick: () => setTab('revenues') },
     { key: 'audit', label: 'Auditoria', active: tab === 'audit', onClick: () => setTab('audit') },
     { key: 'reports', label: 'Relatórios', active: tab === 'reports', onClick: () => setTab('reports') },
-    { key: 'support', label: 'Suporte', active: tab === 'support', onClick: () => setTab('support') },
     { key: 'economic-alerts', label: 'Alertas econômicos', active: tab === 'economic-alerts', onClick: () => setTab('economic-alerts') },
     { key: 'market-health', label: 'Saúde dos Mercados', active: tab === 'market-health', onClick: () => setTab('market-health') },
   ];
+  if (canSeeSupport) {
+    adminDrawerItems.splice(10, 0, { key: 'support', label: 'Suporte', active: tab === 'support', onClick: () => setTab('support') });
+  }
   if (canManageRpcLiquidity) {
     adminDrawerItems.splice(6, 0, { key: 'liquidity', label: 'Liquidez RPC/R$', active: tab === 'liquidity', onClick: () => setTab('liquidity') });
   }
@@ -280,7 +284,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
         <button className={tab === 'revenues' ? 'pill active' : 'pill'} onClick={() => setTab('revenues')}>Receitas</button>
         <button className={tab === 'audit' ? 'pill active' : 'pill'} onClick={() => setTab('audit')}>Auditoria</button>
         <button className={tab === 'reports' ? 'pill active' : 'pill'} onClick={() => setTab('reports')}>Relatórios</button>
-        <button className={tab === 'support' ? 'pill active' : 'pill'} onClick={() => setTab('support')}>Suporte</button>
+        {canSeeSupport && <button className={tab === 'support' ? 'pill active' : 'pill'} onClick={() => setTab('support')}>Suporte</button>}
         <button className={tab === 'economic-alerts' ? 'pill active' : 'pill'} onClick={() => setTab('economic-alerts')}>Alertas econômicos</button>
         <button className={tab === 'market-health' ? 'pill active' : 'pill'} onClick={() => setTab('market-health')}>Saúde dos Mercados</button>
       </nav>
@@ -446,7 +450,7 @@ export function AdminDashboard({ currentUserRoles, onPermissionsUpdated }: Admin
 
       {tab === 'audit' && <AdminAuditPanel />}
       {tab === 'reports' && <AdminReportsPanel />}
-      {tab === 'support' && <AdminSupportPanel />}
+      {tab === 'support' && canSeeSupport && <AdminSupportPanel />}
       {tab === 'economic-alerts' && <AdminEconomicAlertsPanel />}
       {tab === 'market-health' && <AdminMarketHealthPanel />}
 
