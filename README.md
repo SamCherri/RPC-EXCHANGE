@@ -212,8 +212,33 @@ Implementado nesta fase:
     - `PENDING`, `PROCESSING`, `COMPLETED`, `REJECTED`, `CANCELED`.
 21. Novo campo em carteira:
     - `pendingWithdrawalBalance`.
+22. Solicitação manual de depósito de R$ fictício/RP:
+    - usuário solicita via Plataforma/Administração ou Corretor Virtual;
+    - solicitação nasce `PENDING` sem crédito automático;
+    - print/comprovante é opcional, protegido por permissão e não aprova nem credita saldo automaticamente;
+    - `POST /api/deposits` aceita `Idempotency-Key` para evitar duplo clique criando pedidos duplicados;
+    - admin conclui depósitos `PLATFORM` debitando `TreasuryAccount.balance` como contrapartida econômica;
+    - admin pode rejeitar depósitos `BROKER`, mas não conclui debitando saldo de corretor de forma silenciosa;
+    - corretor atribuído conclui depósitos `BROKER` usando saldo próprio de `BrokerAccount`;
+    - conclusão credita `wallet.fiatAvailableBalance`, gera `Transaction`, `CoinTransfer` quando há tesouraria e `AdminLog`.
 
 ## Endpoints principais do estado atual
+
+Depósitos:
+- `GET /api/deposits/me`
+- `POST /api/deposits`
+- `POST /api/deposits/:id/cancel`
+- `GET /api/deposits/:id/screenshot`
+- `GET /api/admin/deposits`
+- `POST /api/admin/deposits/:id/mark-processing`
+- `POST /api/admin/deposits/:id/complete`
+- `POST /api/admin/deposits/:id/reject`
+- `GET /api/admin/deposits/:id/screenshot`
+- `GET /api/broker/deposits`
+- `POST /api/broker/deposits/:id/mark-processing`
+- `POST /api/broker/deposits/:id/complete`
+- `POST /api/broker/deposits/:id/reject`
+- `GET /api/broker/deposits/:id/screenshot`
 
 Mercados/Projetos:
 - `POST /api/companies/request`

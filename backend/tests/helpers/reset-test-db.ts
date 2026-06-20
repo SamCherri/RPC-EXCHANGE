@@ -30,6 +30,7 @@ export async function resetTestDatabase(prisma: PrismaClient): Promise<void> {
     prisma.coinTransfer.deleteMany(),
     prisma.coinIssuance.deleteMany(),
     prisma.transaction.deleteMany(),
+    prisma.depositRequest.deleteMany(),
     prisma.withdrawalRequest.deleteMany(),
     prisma.adminLog.deleteMany(),
     prisma.registrationProof.deleteMany(),

@@ -20,6 +20,7 @@ enum FinancialPermissionKey {
   PROJECT_CREATE
   WITHDRAWAL_REQUEST
   BROKER_TRANSFER
+  FIAT_DEPOSIT_REQUEST
 }
 
 enum CompanyStatus {
@@ -41,6 +42,19 @@ enum TransferType {
 }
 
 enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELED
+}
+
+enum DepositMethod {
+  PLATFORM
+  BROKER
+}
+
+enum DepositStatus {
   PENDING
   PROCESSING
   COMPLETED
@@ -174,6 +188,10 @@ model User {
   paidFeeDistributions FeeDistribution[] @relation("fee_distribution_payer")
   withdrawalRequests WithdrawalRequest[] @relation("withdrawal_request_user")
   reviewedWithdrawalRequests WithdrawalRequest[] @relation("withdrawal_request_reviewer")
+  depositRequests DepositRequest[] @relation("deposit_request_user")
+  brokerDepositRequests DepositRequest[] @relation("deposit_request_broker")
+  reviewedDepositRequests DepositRequest[] @relation("deposit_request_reviewer")
+  completedDepositRequests DepositRequest[] @relation("deposit_request_completer")
   boostInjections CompanyBoostInjection[]
   capitalFlowEntries CompanyCapitalFlowEntry[]
   rpcExchangeTrades RpcExchangeTrade[]
@@ -522,6 +540,45 @@ model WithdrawalRequest {
 
   @@index([userId])
   @@index([status])
+  @@index([code])
+  @@index([createdAt])
+}
+
+model DepositRequest {
+  id            String        @id @default(cuid())
+  code          String        @unique
+  userId        String
+  user          User          @relation("deposit_request_user", fields: [userId], references: [id])
+  amount        Decimal       @db.Decimal(18, 2)
+  method        DepositMethod
+  status        DepositStatus @default(PENDING)
+  brokerUserId  String?
+  brokerUser    User?         @relation("deposit_request_broker", fields: [brokerUserId], references: [id])
+  userNote           String?
+  adminNote          String?
+  idempotencyKey     String?
+  requestHash        String?
+  screenshotMimeType String?
+  screenshotFileName String?
+  screenshotData     String?
+  screenshotChecksum String?
+  screenshotSize     Int?
+  reviewedById       String?
+  reviewedBy    User?         @relation("deposit_request_reviewer", fields: [reviewedById], references: [id])
+  completedById String?
+  completedBy   User?         @relation("deposit_request_completer", fields: [completedById], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  processingAt  DateTime?
+  completedAt   DateTime?
+  rejectedAt    DateTime?
+  canceledAt    DateTime?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId])
+  @@index([brokerUserId])
+  @@index([status])
+  @@index([method])
   @@index([code])
   @@index([createdAt])
 }

@@ -7,6 +7,7 @@ import { BrokerDashboard } from './pages/BrokerDashboard';
 import { CompanyRequestPage } from './pages/CompanyRequestPage';
 import { CompaniesPage } from './pages/CompaniesPage';
 import { WithdrawalsPage } from './pages/WithdrawalsPage';
+import { DepositsPage } from './pages/DepositsPage';
 import { ProjectOwnerPanel } from './pages/ProjectOwnerPanel';
 import { RpcMarketPage } from './pages/RpcMarketPage';
 import { RegistrationStatusPage } from './pages/RegistrationStatusPage';
@@ -16,7 +17,7 @@ import { SideDrawer, SideDrawerItem } from './components/SideDrawer';
 import { SupportWidget } from './components/SupportWidget';
 
 type PublicTab = 'login' | 'register';
-type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'withdrawals' | 'company-request' | 'admin' | 'broker' | 'my-projects';
+type PrivateScreen = 'home' | 'markets' | 'wallet' | 'rpc-market' | 'deposits' | 'withdrawals' | 'company-request' | 'admin' | 'broker' | 'my-projects';
 
 type ViewerRoles = {
   canSeeAdmin: boolean;
@@ -155,6 +156,7 @@ export function App() {
       { key: 'markets', label: 'Mercados', icon: '🪙', active: screen === 'markets', onClick: () => setScreen('markets'), section: 'main' },
       { key: 'wallet', label: 'Carteira', icon: '💼', active: screen === 'wallet', onClick: () => setScreen('wallet'), section: 'main' },
       { key: 'rpc-market', label: 'RPC/R$', icon: '💴', active: screen === 'rpc-market', onClick: () => setScreen('rpc-market'), section: 'main' },
+      { key: 'deposits', label: 'Depósitos', icon: '💵', active: screen === 'deposits', onClick: () => setScreen('deposits'), section: 'secondary' },
       { key: 'withdrawals', label: 'Saque', icon: '🏧', active: screen === 'withdrawals', onClick: () => setScreen('withdrawals'), section: 'secondary' },
       { key: 'company-request', label: 'Criar token', icon: '🚀', active: screen === 'company-request', onClick: () => setScreen('company-request'), section: 'secondary' },
       { key: 'support', label: 'Suporte', icon: '💬', onClick: () => setIsSupportOpen(true), section: 'secondary' },
@@ -316,7 +318,8 @@ export function App() {
           <div className="home-grid home-grid-actions nested-card desktop-home-actions desktop-only">
             <button className="home-tile" onClick={() => setScreen('markets')}><span>🪙</span><strong>Mercados</strong><small>Veja ativos disponíveis para negociar.</small></button>
             <button className="home-tile" onClick={() => setScreen('wallet')}><span>💼</span><strong>Carteira</strong><small>Acompanhe seu saldo e seus ativos.</small></button>
-            <button className="home-tile" onClick={() => setScreen('withdrawals')}><span>🏧</span><strong>Saque</strong><small>Solicite a retirada de RPC para receber dentro do RP.</small></button>
+            <button className="home-tile" onClick={() => setScreen('deposits')}><span>💵</span><strong>Depósitos</strong><small>Solicite R$ fictício via plataforma ou corretor.</small></button>
+            <button className="home-tile" onClick={() => setScreen('withdrawals')}><span>🏧</span><strong>Saque</strong><small>Solicite a retirada de R$ para receber dentro do RP.</small></button>
             <button className="home-tile" onClick={() => setScreen('company-request')}><span>🚀</span><strong>Criar token</strong><small>Crie seu projeto e solicite listagem no mercado.</small></button>
             {canSeeMyProjects && <button className="home-tile" onClick={() => setScreen('my-projects')}><span>📊</span><strong>Meus Projetos</strong><small>Gerencie impulsões da sua moeda.</small></button>}
             {roles.canSeeAdmin && <button className="home-tile" onClick={() => setScreen('admin')}><span>🛠️</span><strong>Admin</strong><small>Painel administrativo</small></button>}
@@ -340,6 +343,7 @@ export function App() {
         />
       )}
       {screen === 'rpc-market' && <RpcMarketPage initialTradeFlow={rpcMarketAction} onTradeFlowHandled={() => setRpcMarketAction(null)} />}
+      {screen === 'deposits' && <DepositsPage />}
       {screen === 'withdrawals' && <WithdrawalsPage />}
       {screen === 'company-request' && <CompanyRequestPage />}
       {screen === 'my-projects' && canSeeMyProjects && <ProjectOwnerPanel />}

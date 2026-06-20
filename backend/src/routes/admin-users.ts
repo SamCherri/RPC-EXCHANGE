@@ -222,7 +222,7 @@ export async function adminUsersRoutes(app: FastifyInstance) {
     const roles = authRequest.user.roles ?? [];
     if (!hasSuperAdminRole(roles)) return reply.code(403).send({ message: 'Somente SUPER_ADMIN concede permissões financeiras.' });
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const body = z.object({ permissions: z.array(z.enum(['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER'])), reason: z.string().min(5) }).parse(request.body);
+    const body = z.object({ permissions: z.array(z.enum(['RPC_MARKET_TRADE', 'COMPANY_MARKET_TRADE', 'PROJECT_CREATE', 'WITHDRAWAL_REQUEST', 'BROKER_TRANSFER', 'FIAT_DEPOSIT_REQUEST'])), reason: z.string().min(5) }).parse(request.body);
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return reply.code(404).send({ message: 'Usuário não encontrado.' });
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
