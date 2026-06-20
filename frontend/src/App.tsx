@@ -237,9 +237,14 @@ export function App() {
           <div className="mobile-topbar-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <BrandLogo size="sm" subtitle={false} />
           </div>
-          <button className="button-danger small-button desktop-only" onClick={handleLogout}>
-            Sair
-          </button>
+          <div className="app-topbar-actions desktop-only">
+            <button className="button-secondary small-button desktop-support-button" type="button" onClick={() => setIsSupportOpen(true)}>
+              💬 Suporte
+            </button>
+            <button className="button-danger small-button" onClick={handleLogout}>
+              Sair
+            </button>
+          </div>
         </div>
       </header>
 

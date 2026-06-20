@@ -592,6 +592,26 @@ input[type="checkbox"] {
   gap: 12px;
 }
 
+.app-topbar-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desktop-support-button {
+  border-color: rgba(96, 165, 250, .34);
+  background: rgba(37, 99, 235, .16);
+  color: #dbeafe;
+}
+
+.desktop-support-button:hover,
+.desktop-support-button:focus-visible {
+  border-color: rgba(147, 197, 253, .72);
+  background: rgba(37, 99, 235, .26);
+  transform: translateY(-1px);
+}
+
 .admin-menu-trigger {
   width: auto;
   min-width: auto;
