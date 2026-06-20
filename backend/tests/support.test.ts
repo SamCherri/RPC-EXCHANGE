@@ -41,10 +41,10 @@ test('suporte privado, permissões, anexos, rate limit e exportação segura', a
   const forbidden = await app.inject({ method:'GET', url:'/api/admin/support/tickets', headers:{authorization:`Bearer ${token(user.id,['USER'])}`} });
   assert.equal(forbidden.statusCode, 403);
 
-  const invalidMime = await app.inject({ method:'POST', url:'/api/support/tickets', headers:{authorization:`Bearer ${token(user.id,['USER'])}`}, payload:{ category:'BUG', title:'Arquivo inválido', message:'Testando arquivo inválido.', screenshot:{ mimeType:'text/plain', fileName:'x.txt', data: Buffer.from('x').toString('base64') } } });
+  const invalidMime = await app.inject({ method:'POST', url:'/api/support/tickets', headers:{authorization:`Bearer ${token(user.id,['USER'])}`}, payload:{ category:'BUG', title:'Arquivo inválido', message:'Testando arquivo inválido.', screenshot:{ mimeType:'text/plain', fileName:'x.txt', data: Buffer.from('payload-pequeno').toString('base64') } } });
   assert.equal(invalidMime.statusCode, 400);
   const big = await app.inject({ method:'POST', url:'/api/support/tickets', headers:{authorization:`Bearer ${token(user.id,['USER'])}`}, payload:{ category:'BUG', title:'Arquivo grande', message:'Testando arquivo grande.', screenshot:{ mimeType:'image/png', fileName:'x.png', data: Buffer.alloc(2*1024*1024+1).toString('base64') } } });
-  assert.equal(big.statusCode, 400);
+  assert.equal(big.statusCode, 413);
 
   for (let i=0;i<5;i++) await app.inject({ method:'POST', url:'/api/support/tickets', headers:{authorization:`Bearer ${token(other.id,['USER'])}`}, payload:{ category:'QUESTION', title:`Spam ${i} teste`, message:'Mensagem válida para testar limite.' } });
   const limited = await app.inject({ method:'POST', url:'/api/support/tickets', headers:{authorization:`Bearer ${token(other.id,['USER'])}`}, payload:{ category:'QUESTION', title:'Spam final', message:'Mensagem válida para testar limite.' } });
